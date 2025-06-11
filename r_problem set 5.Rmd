@@ -1,0 +1,94 @@
+---
+title: "Problem Set 5"
+author: "Noah Seaner"
+date: "3/4/2025"
+output: pdf_document
+---
+
+# Monte Carlo Exercise 9.1.
+
+## a.
+
+```{r}
+for(pi in c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)){
+  x=rbinom(5000,10,pi) ## Michael showed me how to do the eval code below
+    eval(parse(text=paste0('x',pi,'<-','rbinom(5000,10,',pi,')')))
+  freq=x/10 # frequentist estimator
+    eval(parse(text=paste0('freq',pi,'<-','x',pi,'/10')))
+  bayes=(x+1)/12 # Bayesian estimator
+    eval(parse(text=paste0('bayes',pi,'<-','x+1',pi,'/12')))
+  mfreq=mean(freq) # mean of frequentist estimator
+    eval(parse(text=paste0('mfreq',pi,'<-','mean(freq)')))
+  bfreq=mfreq-pi # bias of frequentist estimator
+    eval(parse(text=paste0('bfreq',pi,'<-','mfreq-',pi)))
+  mbayes=mean(bayes) # mean of Bayesian estimator
+    eval(parse(text=paste0('mbayes',pi,'<-','mean(bayes)')))
+  bbayes=mbayes-pi # bias of Bayesian estimator
+    eval(parse(text=paste0('bbayes',pi,'<-','mbayes-',pi)))
+  vfreq=var(freq) # variance of frequentist estimator
+    eval(parse(text=paste0('vfreq',pi,'<-','var(freq)')))
+  vbayes=var(bayes) # variance of Bayesian estimator
+    eval(parse(text=paste0('vbayes',pi,'<-','var(bayes)')))
+  msefreq1=(bfreq)^2+vfreq # (bias of frequentist estimator)^2 + variance of frequentist estimator
+    eval(parse(text=paste0('msefreq1',pi,'<-','(bfreq)^2+vfreq')))
+  msebayes1=(bbayes)^2+vbayes # (bias of Bayesian estimator)^2 + variance of Bayesian estimator
+    eval(parse(text=paste0('msebayes1',pi,'<-','(bbayes)^2+vbayes')))
+  msefreq2=mean((freq-pi)^2) # mean of (frequentist estimator - pi)^2
+    eval(parse(text=paste0('msefreq2', pi,'<-','mean((freq-',pi,')^2)')))
+  msebayes2=mean((bayes-pi)^2) # mean of (Bayesian estimator - pi)^2
+    eval(parse(text=paste0('msebayes2',pi,'<-','mean((bayes-',pi,')^2)')))
+}
+
+pi=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+mfreq=c(mfreq0.1,mfreq0.2,mfreq0.3,mfreq0.4,mfreq0.5,mfreq0.6,mfreq0.7,mfreq0.8,mfreq0.9)
+mbayes=c(mbayes0.1,mbayes0.2,mbayes0.3,mbayes0.4,mbayes0.5,mbayes0.6,mbayes0.7,mbayes0.8,mbayes0.9)
+vfreq=c(vfreq0.1,vfreq0.2,vfreq0.3,vfreq0.4,vfreq0.5,vfreq0.6,vfreq0.7,vfreq0.8,vfreq0.9)
+vbayes=c(vbayes0.1,vbayes0.2,vbayes0.3,vbayes0.4,vbayes0.5,vbayes0.6,vbayes0.7,vbayes0.8,vbayes0.9)
+bfreq=c(bfreq0.1,bfreq0.2,bfreq0.3,bfreq0.4,bfreq0.5,bfreq0.6,bfreq0.7,bfreq0.8,bfreq0.9)
+bbayes=c(bbayes0.1,bbayes0.2,bbayes0.3,bbayes0.4,bbayes0.5,bbayes0.6,bbayes0.7,bbayes0.8,bbayes0.9)
+msefreq1=c(msefreq10.1,msefreq10.2,msefreq10.3,msefreq10.4,msefreq10.5,msefreq10.6,msefreq10.7,msefreq10.8,msefreq10.9)
+msefreq2=c(msefreq20.1,msefreq20.2,msefreq20.3,msefreq20.4,msefreq10.5,msefreq20.6,msefreq20.7,msefreq10.8,msefreq20.9)
+msebayes1=c(msebayes10.1,msebayes10.2,msebayes10.3,msebayes10.4,msebayes10.5,msebayes10.6,msebayes10.7,msebayes10.8,msebayes10.9)
+msebayes2=c(msebayes20.1,msebayes20.2,msebayes20.3,msebayes20.4,msebayes20.5,msebayes20.6,msebayes20.7,msebayes20.8,msebayes20.9)
+
+as.table(matrix(c(mfreq,mbayes,bfreq,bbayes,vfreq,vbayes,msefreq1,msebayes1,msefreq2,msebayes2),nrow=9,ncol=10,byrow=FALSE,dimnames=list(pi=c('0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9'),c('mean of frequentist estimator','mean of Bayesian estimator','bias of frequentist estimator','bias of Bayesian estimator','variance of frequentist estimator','variance of Bayesian estimator','MSE1 of frequentist estimator','MSE1 of Bayesian estimator','MSE2 of frequentist estimator','MSE2 of Bayesian estimator'))))
+
+```
+
+## b.
+
+```{r}
+plot(pi,bbayes,type='l',col='red',xlab='pi',ylab='bias')
+lines(pi,bfreq,col='blue')
+```
+
+## i.
+
+The frequentist estimator is relatively unbiased across all values of $\pi$.
+
+## ii.
+
+The Bayesian estimator is biased toward the extreme values of $\pi$.
+
+\newpage
+
+## c.
+
+```{r}
+plot(pi,msefreq2,type='l',col='red',xlab='pi',ylab='MSE')
+lines(pi,msebayes2,col='blue')
+```
+
+## i.
+
+Yes it does.
+
+## ii.
+
+The Bayesian estimator has a lower MSE when $0.2<\pi<0.8$.
+
+## d.
+
+Depending on what branch of statistics you come from, either frequentist or Bayesian statistics, there may be two ways to do an analysis. Therefore, if we wanted to estimate something, say $\pi$, there are two procedures we can use. In a frequentist setting, our best estimator for $\pi$ is the sample proportion, i.e. $$\hat{\pi}_f=\frac{y}{n}$$ where $y$ is the number of successes over $n$ trials. In other words, $y\sim Binomial(n,\pi)$. On the other hand, we have to choose a prior for $\pi$ in a Bayesian analysis. Since we know our likelihood $y\mid\pi\sim Binomial(n,\pi)$, then we opt for the prior $\pi\sim Uniform(0,1)$ distribution. Therefore, our estimator for $\pi$ in a Bayesian setting is the posterior mean, or $$\hat{\pi}_B=\frac{y+1}{n+2}.$$ 
+
+In this exercise, we performed a Monte Carlo study to deduce the better estimator of $\pi$ when $\pi=0.1,0.2,\dots,0.9$. Specifically, we drew $5000$ samples from each estimator for each value of $\pi$ and calculated the mean, bias, variance, and mean squared error; all of these values can be found in the table in part (a). Next, we plotted the biases of each estimator for each value of $\pi$. We found that $\hat{\pi}_f$ is relatively unbiased for all values of $\pi$, whereas $\hat{\pi}_B$ is biased towards the extreme values of $\pi$, i.e. as $\pi\approx 0$ and $\pi\approx 1$, the bias increases. The plot itself is in part (b). Lastly, we plotted the mean squared error of both estimators for each value of $\pi$. The conclusion that we can draw from the graph in part (c) is that for most values of $\pi$, the Bayesian estimator with a uniform prior is better than the frequentist estimator. 

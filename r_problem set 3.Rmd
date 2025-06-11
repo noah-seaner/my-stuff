@@ -1,0 +1,356 @@
+---
+title: "Problem Set 3"
+author: "Noah"
+date: "2/18/2025"
+output: pdf_document
+---
+# Question 1
+
+## a.
+
+\begin{align*}
+  Pr(F_1)&=\int_0^1 Pr(F_1\mid\theta)\cdot p(\theta) d\theta\\
+  &=\int_0^1 \theta\cdot 1 d\theta\\
+  &=\dfrac{1}{2}-\dfrac{0}{2}\\
+  &=\dfrac{1}{2}.
+\end{align*}
+
+## b. 
+
+\begin{align*}
+  Pr(F_1,F_2)&=\int_0^1 Pr(F_1,F_2,\theta) d\theta\\
+  &=\int_0^1 P(F_1,F_2\mid\theta)\cdot p(\theta) d\theta\\
+  &=\int_0^1 \theta^2 d\theta\\
+  &=\dfrac{1}{3}-\dfrac{0}{3}\\
+  &=\dfrac{1}{3}.
+\end{align*}
+
+## c.
+
+\begin{align*}
+  Pr(F_2\mid F_1)&=\dfrac{Pr(F_1\cap F_2)}{Pr(F_1)}\\
+  &=\dfrac{\frac{1}{3}}{\frac{1}{2}}\\
+  &=\dfrac{2}{3}.
+\end{align*}
+
+## d.
+
+\begin{align*}
+  Pr(F_{n+1}\mid F_1,F_2,\dots,F_n)&=\dfrac{Pr(F_1,F_2,\dots,F_{n+1})}{Pr(F_1,F_2,\dots,F_n)}\\
+  &=\dfrac{\int_0^1 Pr(F_1,F_2,\dots,F_{n+1}\mid\theta d\theta)}{\int_0^1 Pr(F_1,F_2,\dots,F_n\mid\theta) d\theta}\\
+  &=\dfrac{\int_0^1 Pr(F_1\mid\theta,F_2\mid\theta,\dots,F_{n+1}\mid\theta) d\theta}{\int_0^1 Pr(F_1\mid\theta,F_2\mid\theta,\dots,F_n\mid\theta) d\theta}\\
+  &=\dfrac{\int_0^1 Pr(F_1\mid\theta)\cdot Pr(F_2\mid\theta)\cdot \dots \cdot Pr(F_{n+1}\mid\theta) d\theta}{\int_0^1 Pr(F_1\mid\theta)\cdot Pr(F_2\mid\theta)\cdot\dots\cdot Pr(F_n\mid\theta) d\theta}\\
+  &=\dfrac{\int_0^1 \theta^{n+1} d\theta}{\int_0^1 \theta^n d\theta}\\
+  &=\dfrac{\frac{1}{n+2} \theta^{n+2}}{\frac{1}{n+1} \theta^{n+1}}\\
+  &=\dfrac{n+1}{n+2}.
+\end{align*}
+
+## e.
+
+$$\lim_{n\to\infty} \dfrac{n+1}{n+2}=1.$$
+
+This means that as the number of heads approaches $\infty$, the probability of the next flip being heads is $1$.
+
+# Question 2
+
+## a.
+
+\begin{align*}
+  p(\lambda\mid y_i)&=\dfrac{p(\lambda\cap y_i)}{p(y_i)}\\
+  &=\dfrac{p(\lambda)\cdot p(y_i\mid\lambda)}{\int_0^{\infty} p(\lambda')\cdot p(y_i\mid\lambda') d\lambda'}\\
+  &=\dfrac{p(\lambda)\cdot [p(y_1\lambda)\cdot p(y_2\mid\lambda)\cdot \dots \cdot p(y_n\mid\lambda)]}{\int_0^{\infty} p(\lambda')\cdot [p(y_1\lambda')\cdot p(y_2\mid\lambda')\cdot \dots \cdot p(y_n\mid\lambda')] d\lambda'}\\
+  &=\dfrac{\frac{1}{\Gamma(r)} v^r\lambda^{r-1}e^{-v\lambda}\cdot \prod_{i=1}^n p(y_i\mid\lambda)}{\int_0^{\infty} \frac{1}{\Gamma(r)} v^r\lambda'^{r-1}e^{-v\lambda'}\cdot \prod_{i=1}^n p(y_i\mid\lambda') d\lambda'}\\
+  &=\dfrac{\lambda^{r-1}e^{-v\lambda}\cdot \prod_{i=1}^n e^{-\lambda}\frac{\lambda^{y_i}}{y_i!}}{\int_0^{\infty} \lambda'^{r-1}e^{-v\lambda'}\cdot \prod_{i=1}^n e^{-\lambda'}\frac{\lambda'^{y_i}}{y_i!}}\\
+  &=\dfrac{\lambda^{r+n\bar{y}-1}e^{-\lambda(v+n)}}{\int_0^{\infty} \lambda'^{r+n\bar{y}-1}e^{-\lambda'(v+n)} d\lambda'}\cdot \dfrac{\frac{(v+n)^{r+n\bar{y}}}{\Gamma(r+n\bar{y})}}{\frac{(v+n)^{r+n\bar{y}}}{\Gamma(r+n\bar{y})}}\\
+  &=\dfrac{1}{\Gamma(r+n\bar{y})}(v+n)^{r+n\bar{y}}\lambda^{r+n\bar{y}-1}e^{-\lambda(v+n)}\\
+  &=Gamma(r+n\bar{y},v+n).
+\end{align*}
+Therefore, $\lambda\mid y_i\sim Beta(r+n\bar{y},v+n)$.
+
+## b.
+
+Depending on how many $y_i$ we have, it may be the case that the posterior may be affected more by the likelihood as opposed to the prior distribution.
+
+## c.
+
+To minimize the effect of the prior distribution compared to the effect of the likelihood, we would need to choose $r,v\in\mathbb{R}^+$ such that $r$ and $v$ are as close to $0$ as possible. For example, let $r=v=0.00001$. 
+
+## d.
+
+```{r}
+p=seq(0,1,length=100)
+plot(c(0,1),c(0,5)/10000,xlab='p',ylab='density')
+lines(p,dgamma(p,0.00001,0.00001))
+```
+
+The graph of the pdf of $\lambda\sim Gamma(0.00001,0.00001)$ would suggest that $\lambda$ attains its highest values at lower probabilities.
+
+# Question 3
+
+\begin{align*}
+  p(\lambda\mid y_i)&=\dfrac{p(\lambda\cap y_i)}{p(y_i)}\\
+  &=\dfrac{p(\lambda)\cdot p(y_i\mid\lambda)}{\int_0^{\infty} p(y_i\cap\lambda') d\lambda'}\\
+  &=\dfrac{p(\lambda)\cdot [p(y_1\mid\lambda)\cdot p(y_2\mid\lambda)\cdot\dots\cdot p(y_n\mid\lambda)]}{\int_0^{\infty} p(\lambda')\cdot [p(y_1\mid\lambda')\cdot p(y_2\mid\lambda')\cdot\dots\cdot p(y_n\mid\lambda')] d\lambda'}\\
+  &=\dfrac{\frac{1}{\Gamma(r)}v^r\lambda^{r-1}e^{-v\lambda}\cdot \prod_{i=1}^n p(y_i\mid\lambda)}{\int_0^{\infty} \frac{1}{\Gamma(r)}v^r\lambda^{r-1}e^{-v\lambda}\cdot \prod_{i=1}^n p(y_i\mid\lambda) d\lambda'}\\
+  &=\dfrac{\lambda^{r-1}e^{-v\lambda}\cdot \prod_{i=1}^n \lambda e^{\lambda y_i}}{\int_0^{\infty} \lambda'^{r-1}e^{-v\lambda'}\cdot \prod_{i=1}^n \lambda' e^{\lambda' y_i} d\lambda'}\\
+  &=\dfrac{\lambda^{r+n-1}e^{-\lambda(v+n\sum{y_i})}}{\int_0^{\infty} \lambda'^{r+n-1}e^{-\lambda'(v+n\sum{y_i})} d\lambda'}\cdot \dfrac{\frac{1}{\Gamma(r+n)}(v+n\sum{y_i})^{r+n}}{\frac{1}{\Gamma(r+n)}(v+n\sum{y_i})^{r+n}}\\
+  &=\dfrac{1}{\Gamma(r+n)}(v+n^2\bar{y})^{r+n}\lambda^{r+n-1}e^{-\lambda(v+n^2\bar{y})}\\
+  &=Gamma(r+n,v+n^2\bar{y}).
+\end{align*}
+
+Therefore, $\lambda\mid y_i\sim Gamma(r+n,v+n^2\bar{y})$.
+
+# Question 4
+
+## a.
+
+```{r}
+p=seq(0,40,length=100)
+plot(p,dgamma(p,1,1),col="black",xlab="success",ylab="probability",type='l')
+lines(p,dgamma(p,0.5,1),col="blue")
+lines(p,dgamma(p,6.25,2.5),col="red")
+lines(p,dgamma(p,0.001,0.001),col="green")
+legend(20,0.75,c('Uniform Improper Prior',"Jeffreys' Prior","Gamma(6.25,2.5)","Gamma(0.001,0.001)"),lty=c(1,1,1),c("black","blue","red","green"))
+```
+
+## b.
+
+```{r}
+p=seq(0,40,length=1000)
+plot(p,dgamma(p,27,8),col="black",xlab="success",ylab="probability",type='l')
+lines(p,dgamma(p,26.5,8),col="blue")
+lines(p,dgamma(p,32.25,3.5),col="red")
+lines(p,dgamma(p,26.001,1.001),col="green")
+legend(15,0.5,c('Uniform Improper Posterior',"Jeffreys' Prior Posterior","Gamma(6.25,2.5) Posterior","Gamma(0.001,0.001) Posterior"),lty=c(1,1,1),c("black","blue","red","green"))
+```
+
+## c.
+
+```{r}
+qgamma(0.5,27,8)
+qgamma(0.025,27,8)
+qgamma(0.975,27,8)
+qgamma(0.5,26.5,8)
+qgamma(0.025,26.5,8)
+qgamma(0.975,26.5,8)
+qgamma(0.5,32.25,3.5)
+qgamma(0.025,32.25,3.5)
+qgamma(0.975,32.25,3.5)
+qgamma(0.5,26.001,1.001)
+qgamma(0.025,26.001,1.001)
+qgamma(0.975,26.001,1.001)
+
+data=matrix(c("Gamma(27,8)","3.375","3.333","(2.224,4.762)","Gamma(26.5,8)","3.313","3.271","(2.174,4.688","Gamma(32.35,3.5)","9.214","9.119","(6.313,12.656)","Gamma(26.001,1.001)","25.975","25.643","(16.968,36.869"),ncol=4,byrow=TRUE)
+colnames(data)=c('Posterior','Mean','Median','95% BCI')
+rownames(data)=c('1','2','3','4')
+as.table(data)
+```
+
+## d.
+
+One thing that stood out to me is that when we compare the two improper priors, the uniform and Jeffreys', we see that the distribution looks roughly the same in both the prior and the resulting posterior with a Poisson likelihood. Also, I found it interesting how the mean of the fourth distribution is significantly greater than that of the others. Given what I saw, I would use Jeffreys' prior in this scenario. I would like to think that traffic accidents do not happen that often per week, but I would not be able to come up with exact figures let alone a distribution. Therefore, with Jeffreys' prior, I can let the data drive the majority of the analysis with as little bias as possible. 
+
+# Question 5
+
+## a.
+
+```{r}
+qgamma(0.025,341.5,27)
+qgamma(0.975,341.5,27)
+qgamma(0.025,467.5,43)
+qgamma(0.975,467.5,43)
+```
+
+For type A stars, we have a prior distribution $\lambda_A\sim Gamma(0.5,0)$, a Poisson likelihood $y_i\mid\lambda_A\sim Poisson(\lambda_A)$, $\sum{y_i}=341$ gamma rays, and $n=27$ hours. Therefore, our posterior distribution $\lambda_A\mid y_i\sim Gamma(341.5,27)$, the posterior mean is $E[\lambda_A\mid y_i]=\frac{341.5}{27}\approx 12.6481$, and the equal-tailed BCI is $(11.3421,14.02434)$.
+
+For type B stars, we have a prior distribution $\lambda_B\sim Gamma(0.5,0)$, a Poisson likelihood $y_i\mid\lambda_B\sim Poisson(\lambda_B)$, $\sum{y_i}=467$ gamma rays, and $n=43$ hours. Therefore, our posterior distribution $\lambda_B\mid y_i\sim Gamma(467.5,43)$, the posterior mean is $E[\lambda_B\mid y_i]=\frac{467.5}{43}\approx 10.8721$, and the equal-tailed BCI is $(9.90877,11.87946)$.
+
+## b.
+
+```{r}
+a=rgamma(10000,341.5,27)
+b=rgamma(10000,467.5,43)
+c=a-b
+length(which(c>0))
+```
+Using a Monte Carlo simulation, we find that $Pr(\lambda_A-\lambda_B>0\mid y_i)=\frac{9804}{10000}=0.9804$.
+
+## c.
+
+```{r}
+quantile(c,probs=seq(0,1,0.025))
+```
+The equal-tailed 95% BCI is $(0.1336249,3.4429255)$.
+
+## d.
+
+$$Pr(\lambda_A>\lambda_B\mid y)=\int_0^{\infty} \int_{\lambda_B}^{\infty} \left(\frac{1}{\Gamma(341.5)}(27)^{341.5}\lambda_A^{340.5}e^{-26\lambda_A}\right)\cdot\left(\frac{1}{\Gamma(467.5)}43^{467.5}\lambda_B^{466.5}e^{-43\lambda_B}\right)d\lambda_Ad\lambda_B.$$
+
+# 9.1.
+
+## a.
+
+$y\sim Binomial(30,\pi)$.
+
+## b.
+
+The frequentist estimate for $\pi$ would be $\frac{8}{30}\approx 0.2\bar{6}$.
+
+## c.
+
+If $\pi\sim Beta(1,1)$, $y\mid\pi \sim Binomial(30,\pi)$, and $y=8$ then $\pi\mid y\sim Beta(9,23)$.
+
+## d.
+
+Since $\pi\mid y\sim Beta(9,23)$, then the Bayesian estimator is the mean, i.e. $E[\pi\mid y]=\frac{9}{1+1+30}=\frac{9}{32}=0.28125$.
+
+# 9.3.
+
+## a.
+
+The frequentist estimate for $\pi$ is $\frac{11}{116}\approx 0.095$.
+
+## b.
+
+If $\pi\sim Beta(1,10)$, $y\mid\pi\sim Binomial(116,\pi)$, and $y=11$, then $\pi\mid y\sim Beta(12,115)$.
+
+## c.
+
+The mean $E[\pi\mid y]=\frac{12}{127}=\frac{12}{118}\approx 0.094$, and the variance $Var[\pi\mid y]=\frac{12\cdot 115}{(127)^2(128)}=\frac{1380}{2064512}\approx 0.00067$.
+
+## d.
+
+```{r}
+qbeta(0.025,12,115)
+qbeta(0.975,12,115)
+```
+
+The 95% BCI for $\pi$ is $(0.0502,0.1508)$.
+
+## e.
+
+Since $0.1\in(0.0502,0.1508)$, we fail to reject $H_o$.
+
+# 9.5.
+
+## a.
+
+The frequentist estimator for $\pi$ is $\frac{24}{176}\approx 0.1364$.
+
+## b.
+
+If $\pi\sim Beta(1,10)$, $y\mid\pi\sim Binomial(176,\pi)$, and $y=24$, then $\pi\mid y\sim Beta(25,162)$.
+
+## c.
+
+The mean, i.e. the Bayesian estimator, $E[\pi\mid y]=\frac{25}{187}\approx 0.1337$ and the variance $Var[\pi\mid y]=\frac{25\cdot 162}{(187)^2(188)}=\frac{4050}{6574172}\approx 0.00062$.
+
+## d.
+
+```{r}
+1-pbeta(0.15,25,162)
+```
+Given that our p-value is $0.2465$, we fail to reject $H_o$ at $5\%$ significance.
+
+# 10.1.
+
+## a.
+
+### i.
+
+Since $\mu\sim Gamma(1,0)$, $\sum{y_i}=12$, and $n=5$, then $\mu\mid y_i\sim Gamma(13,5)$.
+
+### ii.
+
+```{r}
+qgamma(0.5,13,5)
+```
+
+Since $\mu\mid y_i\sim Gamma(13,5)$, we can obtain the following:
+
+  + $E[\mu\mid y_i]=\dfrac{13}{5}$
+  
+  + $Var[\mu\mid y_i]=\dfrac{13}{25}$.
+  
+  + $Med[\mu\mid y_i]=2.534$.
+
+## b.
+
+### i.
+
+Since $\mu\sim Gamma\left(\frac{1}{2},0\right)$, $\sum{y_i}=12$, and $n=5$, then $\mu\mid y_i\sim Gamma(12.5,5)$.
+
+### ii.
+
+```{r}
+qgamma(0.5,12.5,5)
+```
+
+Since $\mu\mid y_i\sim Gamma(12.5,5)$, we can obtain the following:
+
+  + $E[\mu\mid y_i]=\dfrac{12.5}{5}$
+  
+  + $Var[\mu\mid y_i]=\dfrac{12.5}{25}$
+  
+  + $Med[\pi\mid y_i]=2.434$.
+
+# 10.3.
+
+## a.
+
+### i.
+
+Since $\mu\sim Gamma(1,0)$, $y_i\mid\mu\sim Poisson(\mu)$, $\sum{y_i}=122$, and $n=200$, then $\mu\mid y_i\sim Gamma(123,200)$.
+
+### ii.
+
+```{r}
+qgamma(0.5,123,200)
+```
+
+Since $\mu\mid y_i\sim Gamma(123,200)$, we can obtain the following:
+
+  + $E[\mu\mid y_i]=\frac{123}{200}=0.615$.
+  
+  + $Var[\mu\mid y_i]=\frac{123}{40000}\approx 0.0031$.
+  
+  + $Med[\mu\mid y_i]\approx 0.6133$.
+
+## b.
+
+### i.
+
+Since $\mu\sim Gamma(0.5,0)$, $y_i\mid\mu\sim Poisson(\mu)$, $\sum{y_i}=122$, and $n=200$, then $\mu\mid y_i\sim Gamma(122.5,200)$.
+
+### ii.
+
+```{r}
+qgamma(0.5,122.5,200)
+```
+
+Since $\mu\mid y_i\sim Gamma(122.5,200)$, we can obtain the following:
+
+  + $E[\mu\mid y_i]=\frac{122.5}{200}=0.6125$.
+  
+  + $Var[\mu\mid y_i]=\frac{122.5}{40000}\approx 0.0031$.
+  
+  + $Med[\mu\mid y_i]\approx 0.6108$.
+
+# 10.4.
+
+## a.
+
+Given our prior belief, we want to find a gamma distribution that satisfies $\frac{r}{v}=6$ and $\frac{r}{v^2}=4$. Thus, using algebra, we obtain $6v=4v^2\Rightarrow v=1.5$. Therefore, $r=9$. The gamma distribution that matches our prior belief about the mean and standard deviation is $Gamma(9,1.5)$.
+
+## b.
+
+Since $\lambda\sim Gamma(9,1.5)$, $y_i\mid\lambda\sim Poisson(\lambda)$, $\sum{y_i}=71$, and $n=10$, then our posterior $\lambda\mid y_i\sim Gamma(80,11.5)$.
+
+## c.
+
+```{r}
+qgamma(0.025,80,11.5)
+qgamma(0.975,80,11.5)
+```
+
+A 95% BCI for this distribution is $(5.516089,8.561528)$.

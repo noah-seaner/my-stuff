@@ -1,0 +1,145 @@
+---
+title: "Problem Set 6"
+author: "Noah Seaner"
+date: "3/11/2025"
+output: pdf_document
+---
+
+# Problem 1
+
+## a.
+
+To obtain the full conditionals, we calculate
+
+\begin{align*}
+  p(\alpha,\beta,x,y)&=p(y\mid\alpha,\beta,x)\cdot p(\alpha,\beta,x)\\
+  &=p(y\mid\beta,x)\cdot p(x\mid\alpha,\beta)\cdot p(\alpha,\beta)\\
+  &=p(y\mid\beta,x)\cdot p(x\mid\alpha)\cdot p(\alpha)\cdot p(\beta).
+\end{align*}
+
+With this information, we can find the full conditionals as follows:
+
+\begin{align*}
+  p(\alpha\mid\beta,x,y)&=\frac{p(\alpha,\beta,x,y)}{p(\beta,x,y)}\\
+  &=\frac{p(y\mid\beta,x)\cdot p(x\mid\alpha)\cdot p(\alpha)\cdot p(\beta)}{p(\beta,x,y)},
+\end{align*}
+\begin{align*}
+  p(\beta\mid\alpha,x,y)&=\frac{p(\alpha,\beta,x,y)}{p(\alpha,x,y)}\\
+  &=\frac{p(y\mid\beta,x)\cdot p(x\mid\alpha)\cdot p(\alpha)\cdot p(\beta)}{p(\alpha,x,y)},
+\end{align*}
+and
+\begin{align*}
+  p(x\mid\alpha,\beta,y)&=\frac{p(\alpha,\beta,x,y)}{p(\alpha,\beta,y)}\\
+  &=\frac{p(y\mid\beta,x)\cdot p(x\mid\alpha)\cdot p(\alpha)\cdot p(\beta)}{p(\alpha,\beta,y)}.
+\end{align*}
+
+## b.
+
+Now, removing constant terms, we get the proportional expressions for each full conditional probability:
+
+\begin{align*}
+  p(\alpha\mid\beta,x,y)&\propto p(x\mid\alpha)\cdot p(\alpha)\\
+  p(\beta\mid\alpha,x,y)&\propto p(y\mid\beta,x)\cdot p(\beta)\\
+  p(x\mid\alpha,\beta,y)&\propto p(y\mid\beta,x)\cdot p(x\mid\alpha).
+\end{align*}
+
+## c.
+
+To generate samples from the posterior distribution $p(\alpha,\beta,x\mid y)$, we do Gibbs sampling. We choose initial values $\{\alpha_0,\beta_0,x_0\}$ and draw $\alpha_1$ from $p(\alpha_0,\beta_0,x_0\mid y)$, $\beta_1$ from $p(\alpha_1,\beta_0,x_0\mid y)$, and $x_1$ from $p(\alpha_1,\beta_1,x_0)$ to get the first iteration $\{\alpha_1,\beta_1,x_0\}$ of samples from the posterior distribution. Next, we draw $\alpha_2$ from $p(\alpha_1,\beta_1,x_1)$, $\beta_2$ from $p(\alpha_2,beta_1,x_1)$, and $x_2$ from $p(\alpha_2,\beta_2,x_1)$ to get the second iteration $\{\alpha_2,\beta_2,x_2\}$ of samples from the posterior distribution. This process would repeat however many times we choose.
+
+# Problem 2
+
+Given $\tau\sim Gamma(r,v)$ and $y_i\mid\mu\sim Normal(\mu,\tau)$ where $i=1,\dots,n$, we can derive the posterior distribution as follows:
+
+\begin{align*}
+  p(\tau\mid\mu,y_i)&\propto p(\tau)\cdot\prod_{i=1}^{n}{p(y_i\mid\mu,y_i)}\\
+  &\propto \frac{v^r}{\Gamma(r)}\tau^{r-1}e^{-v\tau}\cdot\prod_{i=1}^{n}{\sqrt{\frac{\tau}{2\pi}}e^{-\frac{\tau}{2}(y_i-\mu)^2}}\\
+  &\propto \tau^{r-1}e^{-v\tau}\cdot \left(\frac{\tau}{2\pi}\right)^{\frac{n}{2}}e^{-\sum{\frac{\tau}{2}(y_i-\mu)^2}}\\
+  &\propto \tau^{\left(r+\frac{n}{2}\right)-1}e^{-\tau\left(v+\frac{1}{2}\sum{(y_i-\mu)^2}\right)}.
+\end{align*}
+
+Therefore, $\tau\mid\mu,y\sim Gamma\left(r+\frac{n}{2},v+\frac{1}{2}\sum{(y_i-\mu)^2}\right)$.
+
+# Problem 3
+
+## a.
+
+```{r}
+N=10000
+samples=numeric(N)
+set.seed(0)
+
+for(i in 1:N){
+  mu=rnorm(1,3.499562555,0.3535312956)
+  samples[i]=c(mu)
+}
+```
+
+## b.
+
+```{r}
+plot(samples,type='l')
+```
+
+## c.
+
+```{r}
+plot(density(samples),main='Posterior Density')
+```
+
+## d.
+
+```{r}
+mean(samples) ## Bayesian estimate
+28/8          ## frequentist estimate
+```
+They're roughly the same.
+
+# Problem 4
+
+## a.
+
+```{r}
+N=10000
+samples=matrix(0,nrow=N,ncol=2)
+
+mu=0
+tau=1
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+set.seed(0)
+
+for(i in 1:N){
+ mu=rnorm(1,(8*3.5*tau)/(0.001+8*tau),sqrt(1/(0.001+8*tau)))
+ tau=rgamma(1,4.001,0.001+0.5*sum((y-mu)^2))
+ samples[i,]=c(mu,tau)
+}
+
+head(samples)
+```
+
+## b.
+
+```{r}
+par(mfrow=c(1,2))
+plot(samples[,1],type='l')
+plot(samples[,2],type='l')
+```
+
+## c.
+
+```{r}
+par(mfrow=c(1,2))
+plot(density(samples[,1]),main='Posterior Density for mu')
+plot(density(samples[,2]),main='Posterior Density for tau')
+```
+
+## d.
+
+```{r}
+mean(samples[,1]) ## Bayesian estimate for mu
+sum(y)/8          ## frequentist estimate for mu
+mean(samples[,2]) ## Bayesian estimate for tau
+1/var(y)          ## frequentist estimate for tau
+```
+
+The means and precisions are roughly the same.

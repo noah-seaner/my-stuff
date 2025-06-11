@@ -1,0 +1,249 @@
+---
+title: "Problem Set 4"
+author: "Noah Seaner"
+date: "02/25/2025"
+output: pdf_document
+---
+
+# Question 1
+
+In both examples, it is assumed that the mean $\mu$ can only take five values. This is a highly unrealistic assumption, especially if the mean we are trying to derive comes from data that follows a particular distribution. In general, $\mu\in\mathbb{R^+}$, so it would be virtually impractical to assume that it can only take five values out of the uncountably infinite ones it could also take.
+
+# Question 2
+
+Given that $\mu\sim Normal(\mu_o,\tau_o)$ and each $y_i\sim Normal(\mu,\tau)$, we derive the posterior $\mu\mid y_i$ as follows:
+
+\begin{align*}
+  p(\mu\mid y_i)&\propto p(\mu)\cdot p(y_i\mid\mu)\\
+  &\propto \dfrac{\tau_o}{\sqrt{2\pi}}e^{-\frac{\tau}{2}(\mu-\mu_o)^2}\cdot e^{-\frac{n\tau}{2}(\mu-\bar{y})^2}\\
+  &\propto e^{-\frac{1}{2}[\tau_o\mu^2-2\tau_o\mu\mu_o+t_o\mu_o^2+n\tau\mu^2-2n\tau\mu\bar{y}+n\tau\bar{y}^2]}\\
+  &\propto e^{-\frac{1}{2}[\mu^2(\tau+n\tau)-2\mu(\tau_o\mu_o+n\tau\bar{y})]}\\
+  &\propto e^{-\frac{\tau_o+n\tau}{2}[\mu^2-2\mu(\frac{\tau_o\mu_o+n\tau\bar{y}}{\tau_o+n\tau})+(\frac{\tau_o\mu_o+n\tau\bar{y}}{\tau_o+n\tau})^2]}\cdot e^{-\frac{\tau_o+n\tau}{2}(\frac{\tau_o\mu_o+n\tau\bar{y}}{t_o+n\tau})^2}\\
+  &\propto e^{-\frac{t_o+n\tau}{2}(\mu-\frac{\tau_o\mu_o+n\tau\bar{y}}{t_o+n\tau})^2}.
+\end{align*}
+Therefore, $\mu\mid y_i\sim Normal(\frac{\tau_o\mu_o+n\tau\bar{y}}{\tau_o+n\tau},\tau_o+n\tau)$.
+
+# Question 3
+
+## a.
+
+Since $\mu\sim Normal(\mu_o=100,\tau_o=0.01)$, $y_i\mid\mu\sim Normal(\mu,\tau=0.01)$, $n=4$, and $\bar{y}=110$, then the posterior distribution is $\mu\mid y_i\sim Normal\left(\frac{(0.01)(100)+(4)(0.01)(110)}{0.01+4(0.01)},0.01+4(0.01)\right)$, or $$\mu\mid y_i\sim Normal(108,0.05).$$
+
+## b.
+
+```{r}
+x=seq(50,200,length=10)
+plot(x,dnorm(x,100,10),type='l',col='red',xlab='mean',ylab='p')
+lines(x,dnorm(x,110,10),col='green')
+lines(x,dnorm(x,108,sqrt(20)),col='blue')
+```
+
+## c.
+
+```{r}
+qnorm(0.025,108,sqrt(20))
+qnorm(0.975,108,sqrt(20))
+```
+Our 95% BCI for the posterior distribution is $(99.23477,116.7652)$.
+
+## d.
+
+```{r}
+pnorm(100,108,sqrt(20))
+```
+Since our p-value $0.03681914<\alpha$, we reject the null hypothesis.
+
+## e.
+
+Since $\mu=100$ is inside our 95% BCI, we fail to reject the null hypothesis.
+
+## f.
+
+```{r}
+x=rnorm(100000,108,sqrt(20))
+quantile(x,probs=seq(0,1,0.025))
+pnorm(100,mean(x),sd(x))
+```
+Our 95% BCI for $100,000$ random observations of our posterior is $(99.26314,116.82698)$. Our p-value for the one-sided test in part d is $0.03660049$. Since this value is less than $\alpha$, we reject the null hypothesis. Furthermore, since $\mu=100$ is inside our 95% BCI, we fail to reject the two-sided test in part e.
+
+## g.
+
+We know that $y_{n+1}\sim Normal(\mu',\sigma^2+(\sigma')^2)$ where $\mu'$ and $(\sigma')^2$ are the posterior mean and variance. Therefore, $y_5\sim Normal(108,\tau=0.008\bar{3})$.
+
+# Question 4
+
+## a.
+
+The prior predictive distribution of $y_1$ given that $y_1\sim Bernoulli(\theta)$ and $\theta\sim Uniform(0,1)$, can be found as follows:
+
+\begin{align*}
+  p(y_1)&=\int p(\theta)\cdot p(y_1\mid\theta)d\theta \\
+  &=\int_0^1 (1)\cdot \theta^{y_1}(1-\theta)^{1-y_1}.
+\end{align*}
+
+When $y_1=0$, then we have $$\int_0^1 \theta d\theta=\frac{1}{2}\theta^2\Big|_0^1=\frac{1}{2}.$$ Otherwise, we have $$\int_0^1 1-\theta d\theta=\theta-\frac{1}{2}\theta^2\Big|_0^1=\frac{1}{2}.$$ Thus, $Pr(y_1=0)=Pr(y_1=1)=\frac{1}{2}$.
+
+## b.
+
+The posterior predictive distribution of $y_{n+1}$ given that $y_{1,\dots,n}\sim Bernoulli(\theta)$ and $\theta\sim Uniform(0,1)$, can be found as follows:
+
+\begin{align*}
+  p(y_{n+1}\mid y_{1,\dots,n})&=\int p(y_{1,\dots,n}\mid\theta)\cdot p(\theta\mid y_{n+1})\\
+  &=\int_0^1 \dfrac{1}{beta(y+1,n-y+1)}\theta^y(1-\theta)^{n-y+1}\theta^{y_{n+1}}(1-\theta)^{1-y_{n+1}}d\theta.
+\end{align*}
+
+When $y_{n+1}=0$, we have
+
+\begin{align*}
+  p(y_{n+1}=0\mid y_{1,\dots,n})&=\frac{1}{beta(y+1,n-y+1)}\int_0^1 \theta^y(1-\theta)^{n-y+1}d\theta\\
+  &=\frac{1}{beta(y+1,n-y+1)}\int_0^1 \frac{1}{beta(y+1,n-y+2)}\theta^y(1-\theta)^{n-y+1}d\theta\cdot beta(y+1,n-y+2)\\
+  &=\frac{beta(y+1,n-y+2)}{beta(y+1,n-y+1)}\\
+  &=\frac{\Gamma(y+1)\Gamma(n-y+2)}{\Gamma(n+3)}\cdot\frac{\Gamma(n+2)}{\Gamma(y+1)\Gamma(n-y+1)}\\
+  &=\frac{\Gamma(n-y+2)\Gamma(n+2)}{\Gamma(n+3)\Gamma(n-y+1)}\\
+  &=\frac{(n-y+1)\Gamma(n-y+1)\Gamma(n+2)}{(n+2)\Gamma(n+2)\Gamma(n-y+1)}\\
+  &=\frac{n-y+1}{n+2}.
+\end{align*}
+
+Similarly, when $y_{n+1}=1$, we have
+
+\begin{align*}
+  p(y_{n+1}=1\mid y_{1,\dots,n})&=\frac{1}{beta(y+1,n-y+1)}\int_0^1 \theta^{y+1}(1-\theta)^{n-y}d\theta\\
+  &=\frac{1}{beta(y+1,n-y+1)}\int_0^1 \frac{1}{beta(y+2,n-y+1)}\theta^{y+1}(1-\theta)^{n-y}d\theta\cdot beta(y+2,n-y+1)\\
+  &=\frac{beta(y+2,n-y+1)}{beta(y+1,n-y+1)}\\
+  &=\frac{\Gamma(y+2)\Gamma(n-y+1)}{\Gamma(n+3)}\cdot\frac{\Gamma(n+2)}{\Gamma(y+1)\Gamma(n-y+1)}\\
+  &=\frac{\Gamma(y+2)\Gamma(n+2)}{\Gamma(n+3)\Gamma(y+1)}\\
+  &=\frac{(y+1)\Gamma(y+1)\Gamma(n+2)}{(n+2)\Gamma(n+2)\Gamma(y+1)}\\
+  &=\frac{y+1}{n+2}.
+\end{align*}
+
+## c.
+
+### i.
+
+With $y=n=0$, we find that $$Pr(y_{n+1}=1\mid n,y)=\frac{0+1}{0+2}=\frac{1}{2}.$$ Therefore, the probability of the first trial succeeding with no prior data is $0.5$.
+
+### ii.
+
+With $y=n=1$, we find that $$Pr(y_{n+1}=1\mid n,y)=\frac{1+1}{1+2}=\frac{1}{3}.$$ Therefore, the probability of the second trial succeeding with the knowledge that we had one previous trial that succeeded is $0.\bar{3}$.
+
+### iii.
+
+With $y=n=8$, we find that $$Pr(y_{n+1}=1\mid n,y)=\frac{8+1}{8+2}=\frac{9}{10}.$$ Therefore, the probability of the ninth trial succeeding with the knowledge that we had eight previous trials that all succeeded is $0.9$.
+
+### iv.
+
+With $y=0$ and $n=98$, we find that $$Pr(y_{n+1}=1\mid n,y)=\frac{0+1}{98+2}=\frac{1}{100}.$$ Therefore, the probability of the $99^{th}$ trial succeeding with the knowledge that we had 98 previous trials that all did not succeed is $0.01$.
+
+### v.
+
+With $y=49$ and $n=98$, we find that $$Pr(y_{n+1}\mid n,y)=\frac{49+1}{98+2}=\frac{50}{100}.$$ Therefore, the probability of the $99^{th}$ trial succeeding with the knowledge that we had 98 previous trials and 49 successes is $0.5$.
+
+### vi.
+
+With $y=n=98$, we find that $$Pr(y_{n+1}\mid n,y)=\frac{98+1}{98+2}=\frac{99}{100}.$$ Therefore, the probability of the $99^{th}$ trial succeeding with the knowledge that we had 98 previous trials that all succeeded is $0.99$.
+
+# 11.3
+
+## a.
+
+Given $\mu\sim Normal(30,0.01)$, $y_i\mid\mu\sim Normal\left(\mu,\frac{1}{9}\right)$, $\bar{y}=36.93$, and $n=10$, our posterior distribution is $\mu\mid y_i\sim Normal\left(\frac{(0.01)(30)+(10)\left(\frac{1}{9}\right)(36.93)}{0.01+10\left(\frac{1}{9}\right)},0.01+10\left(\frac{1}{9}\right)\right)$, or $$\mu\mid y_i\sim Normal(36.8682,1.12\bar{1}).$$
+
+## b.
+
+If the standard process for making a polymer has a mean yield of 35%, and we're interested in whether or not the modified process increases the mean yield, then our hypotheses are $H_o\colon \mu=35$ and $H_a\colon \mu>35$.
+
+## c.
+
+```{r}
+pnorm(35,36.8682,0.944442825)
+```
+Since our p-value is less than 0.05, we reject the null hypothesis.
+
+# 11.5
+
+## a.
+
+Since $\mu\sim Normal(1000,0.000025)$, $y_i\mid\mu\sim Normal(\mu,0.000625)$, $\bar{y}=970$, and $n=4$, then our posterior distribution is $\mu\mid y_{1,\dots,4}\sim Normal\left(\frac{(0.000025)(1000)+(4)(0.000625)(970)}{0.000025+4(0.000625)},0.000025+4(0.000625)\right)$, or $$\mu\mid y_{1,\dots,4}\sim Normal(970.297,0.002525).$$
+
+## b.
+
+```{r}
+qnorm(0.025,970.297,19.901)
+qnorm(0.975,970.297,19.901)
+```
+Our 95% BCI for the posterior distribution is $(931.2918,1009.302)$.
+
+## c.
+
+Since $\theta=-0.835\mu+2203$ and $\mu\sim Normal(1000,0.000025)$, then $\theta\mid y_{1,\dots,4}\sim Normal(-0.835(970.297)+2203,(-0.835)^2(396.0396))$ or $$\theta\mid y_{1,\dots,4}\sim Normal(1392.802,276.129).$$
+
+## d.
+
+```{r}
+qnorm(0.025,1392.802,16.617)
+qnorm(0.975,1392.802,16.617)
+```
+Our 95% BCI for is $(1360.233,1425.371)$.
+
+## e.
+
+```{r}
+x=rnorm(100000,970.297,19.901)
+y=2203-0.835*x
+quantile(y,probs=seq(0,1,0.025))
+```
+Our 95% BCI is $(1360.243,1425.273)$.
+
+# 12.1
+
+## a.
+
+Given $\mu\sim Normal(75,0.01)$, $y_i\mid\mu\sim Normal(\mu,0.25)$, $\bar{y}=79.43$, and $n=10$, then the posterior distribution is $\mu\mid y_i\sim Normal\left(\frac{(0.01)(75)+(10)(0.25)(79.43)}{0.01+10(0.25)},0.01+10(0.25)\right)$, or $$\mu\mid y_i\sim Normal(79.412,2.51).$$
+
+## b.
+
+```{r}
+qnorm(0.025,79.412,0.631)
+qnorm(0.975,79.412,0.631)
+```
+Our 95% BCI is $(78.17526,80.64874)$.
+
+## c.
+
+```{r}
+1-pnorm(80,79.412,0.631)
+```
+Since our p-value is greater than 0.05, we fail to reject the null hypothesis.
+
+## d.
+
+Since $\mu\mid y_i\sim Normal(79.412,2.51)$, then $y_{11}\sim Normal(79.412,2.76)$.
+
+# 12.3
+
+## a.
+
+Given $\mu\sim Normal(325,0.00015625)$, $y_i\mid\mu\sim Normal(\mu,0.00015625)$, $\bar{y}=401.44$, and $n=25$, then our posterior distribution is $\mu\mid y_i\sim Normal\left(\frac{(325)(0.00015625)+(25)(0.00015625)(401.44)}{0.00015625+25(0.00015625)},0.00015625+25(0.00015625)\right)$, or $$\mu\mid y_i\sim Normal(398.5,0.0040625).$$
+
+## b.
+
+```{r}
+qnorm(0.025,398.5,15.689)
+qnorm(0.975,398.5,15.689)
+```
+Our 95% BCI is $(367.7501,429.2499)$.
+
+## c.
+
+Since $350$ is not in our 95% BCI, we reject the null hypothesis.
+
+## d.
+
+```{r}
+pnorm(350,398.5,15.689)
+```
+Since our p-value is less than 0.05, we reject the null hypothesis.
+
+## e.
+
+Since $\mu\mid y_i\sim Normal(398.5,0.0040625)$, then $y_{26}\sim Normal(398.5,\tau=0.0001505)$.

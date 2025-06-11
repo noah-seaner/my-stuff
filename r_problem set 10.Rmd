@@ -1,0 +1,665 @@
+---
+title: "Problem Set 10"
+author: "Noah Seaner"
+date: "4/15/2025"
+output: pdf_document
+---
+
+```{r}
+library(nimble)
+library(readr)
+library(coda)
+library(MCMCvis)
+library(dplyr)
+```
+
+# Problem 1
+
+```{r eval=FALSE}
+a <- c(15,9,15,15,12,15,13,12,10,17,13,14,12,8,14,14,15,14,12,5,13,15,9,10,13,16,11)
+b <- c(9,8,10,12,7,9,11,17,10,12,17,8,15,14,16,13,12,7,14,8,11,15,15,13,7,9,14,11,11,7,14,7,11,8,11,10,6,10,7,13,11,8,9)
+
+step <- function(x){
+  ifelse(x<0,0,1)
+}
+
+code <- nimbleCode({
+  lambda_a ~ dgamma(0.001,0.001)
+  lambda_b ~ dgamma(0.001,0.001)
+  lambda_diff <- lambda_a-lambda_b
+  a_greater <- step(lambda_diff)
+  
+  for(i in 1:length(a)){
+    a[i] ~ dpois(lambda_a)
+  }
+  for(j in 1:length(b)){
+    b[j] ~ dpois(lambda_b)
+  }
+})
+
+constants <- list()
+data <- list(a=a,b=b)
+inits <- list()
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$initializeInfo()
+
+conf <- configureMCMC(Rmodel)
+conf$addMonitors('lambda_diff','a_greater')
+conf$printMonitors()
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+samples <- runMCMC(Cmcmc)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.1.Rdata')
+```
+
+```{r}
+load('samples_problem10.1.Rdata')
+```
+
+## a.
+
+$\lambda_A$ and $\lambda_B$ have been assigned as conjugate samplers.
+
+## b.
+
+```{r}
+pr <- matrix(rgamma(1000,0.001,0.001),ncol=2)
+MCMCtrace(samples,params=c('lambda_a','lambda_b'),type='trace',pdf=FALSE)
+```
+The mixing for $\lambda_A$ and $\lambda_B$ is good. We would assume the mixing would be sufficient because of the uninformative priors that we chose for $\lambda_A$ and $\lambda_B$.
+
+## c.
+
+```{r}
+MCMCtrace(samples,params='a_greater',iter=100,type='trace',pdf=FALSE)
+```
+From the first $100$ iterations, it appears that $\lambda_A$ is greater than $\lambda_B$ most of the time. In this case, there are only four instances in which $\lambda_B$ is greater.
+
+## d.
+
+```{r}
+sum(samples[,'a_greater'])/10000
+```
+$Pr(\lambda_A>\lambda_B\mid y)=0.9815$.
+
+## e.
+
+```{r}
+quantile(samples[,'lambda_diff'],probs=c(0.025,0.975))
+```
+Our 95% BCI for $\lambda_A-\lambda_B$ is $(0.1187175,3.4548319)$.
+
+## f.
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+# Problem 2
+
+## a.
+
+```{r}
+cars=read.csv('UsedCars.csv')
+lm(cars$Price ~ cars$Age+cars$HP+cars$Type,data=cars)
+```
+
+```{r eval=FALSE}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=1)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc,project=Rmodel)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.2a.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem10.2a.Rdata')
+```
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+The posterior means of the $\beta$'s do not agree with the frequentist estimators for the $\beta$'s. This is because the prior distributions we chose for the $\beta$'s were incredibly informative of what we believed the posterior means were.
+
+```{r eval=FALSE}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=1)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc,project=Rmodel)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples2_problem10.2a.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples2_problem10.2a.Rdata')
+```
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+## b.
+
+```{r eval=FALSE}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=1)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc,project=Rmodel)
+
+sigmaSamples <- matrix(nrow=4000,ncol=3)
+colnames(sigmaSamples) <- c('init1','init5000','init9000')
+
+samples1 <- runMCMC(Cmcmc,niter=4000)
+Cmodel$sigma <- 5000
+samples2 <- runMCMC(Cmcmc,niter=4000)
+Cmodel$sigma <- 9000
+samples3 <- runMCMC(Cmcmc,niter=4000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples1,file='samples1_problem10.2b.Rdata')
+save(samples2,file='samples2_problem10.2b.Rdata')
+save(samples3,file='samples3_problem10.2b.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples1_problem10.2b.Rdata')
+load('samples2_problem10.2b.Rdata')
+load('samples3_problem10.2b.Rdata')
+```
+
+```{r}
+sigmaSamples <- matrix(nrow=4000,ncol=3)
+colnames(sigmaSamples) <- c('init1','init5000','init9000')
+
+sigmaSamples[,1] <- c(samples1[,5])
+sigmaSamples[,2] <- c(samples2[,5])
+sigmaSamples[,3] <- c(samples3[,5])
+
+MCMCtrace(sigmaSamples,pdf=FALSE,type='trace')
+```
+
+When the initial value is $1$, $\sigma$ does not change for the first $2500$ iterations. Then, it begins to mix well in the following $1500$ iterations. When the initial value is $5000$ and $9000$, $\sigma$ immediately decreases from the initial value and continues to do so for the entire simulation. Therefore, I would burn the first half of the iterations when $\sigma=1$, but I would not burn any of the iterations.
+
+## c.
+
+```{r eval=FALSE}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=2000)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc,project=Rmodel)
+
+samples <- runMCMC(Cmcmc,niter=4000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.2c.Rdata')
+```
+
+```{r}
+load('samples_problem10.2c.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='sigma',type='trace',pdf=FALSE)
+```
+
+In the traceplot for $\sigma$ the graph starts decreasing immediately, for the first roughly $2000$ iterations. Then, from then on, the value of $\sigma$ goes completely flat.
+
+## d.
+
+```{r eval=FALSE}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=2000)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel,control=list(adaptInterval=100))
+conf$printSamplers()
+Rmcmc <- buildMCMC(Rmodel)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=1000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.2d.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem10.2d.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='sigma',type='trace',pdf=FALSE)
+```
+
+$\beta_1$ now has a conjugate dnorm-dnorm additive sampler and the other $\beta_i$'s were assigned as conjugate dnorm-dnorm linear samplers. $\sigma$ is still a random walk sampler with an adaptInterval of $100$.
+
+The trace plot of $\sigma$ now has more autocorrelation over the course of the $1000$ iterations.
+
+## e.
+
+```{r}
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=2000)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel,control=list(adapt=FALSE))
+conf$printSamplers()
+Rmcmc <- buildMCMC(Rmodel)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=1000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.2e.Rdata')
+```
+
+```{r}
+load('samples_problem10.2e.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='sigma',type='trace',pdf=FALSE)
+```
+
+The $\sigma$ plot now has a more linear slope and not as much flatlining.
+
+## f.
+
+```{r eval=FALSE}
+?samplers
+```
+
+The RW sampler has six options: log, reflective, adaptive, adaptInterval, adaptFactorExponent, and scale. The log option gives you the option to let the sampler operate on the log scale; the default is to not operate on the log scale. The reflective option gives you the option to allow the proposal distribution that the RW samplers uses reflect such that it matches the target distribution. The adaptive argument allows the user to let the sampler change with the proposal standard deviation while the MCMC runs. The adaptInterval argument allows the user to set the interval on which the sampler adapts. Changing this argument changes the scale variable based on the acceptance rate that the sampler calculates over past adaptInterval simulations. The adaptFactorExponent option controls the rate at which the adaptation factor decays. The scale option lets the user control the initial value of the proposal standard deviation.
+
+# Problem 3
+
+```{r eval=FALSE}
+awards=read.csv('school_awards.csv')
+n=length(awards$X)
+
+awards <- awards %>%
+  mutate(Private=ifelse(School=='private',0,1),
+         Public=ifelse(School=='public',0,1))
+
+y <- awards$Num_Awards
+pub <- awards$Public
+priv <- awards$Private
+avgmath <- awards$Avg_Math
+
+code <- nimbleCode({
+  b0 ~ dnorm(0,0.001)
+  bmath ~ dnorm(0,0.001)
+  bpublic ~ dnorm(0,0.001)
+  bprivate ~ dnorm(0,0.001)
+  
+  for(i in 1:n){
+    log(lambda[i]) <- b0+bmath*avgmath[i]+bprivate*priv[i]+bpublic*pub[i]
+    y[i] ~ dpois(lambda[i])
+  }
+  yp <- b0+80*bmath+bpublic
+})
+
+constants <- list(n=n)
+data <- list(y=y,avgmath=avgmath,priv=priv,pub=pub)
+inits <- list(b0=0,bmath=0,bprivate=0,bpublic=0)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+
+conf <- configureMCMC(Rmodel)
+conf$addMonitors('yp')
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=20000,nburnin=5000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.3.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem10.3.Rdata')
+```
+
+## a.
+
+```{r}
+samplesSummary(samples,round=2)
+```
+According to the table, compared to charter schools, private schools have 1.12 more awards and public schools have 0.76 more awards respectively with the same average math score. Furthermore, the BCI's for these coefficients do not contain $0$, making these numbers significant. 
+
+## b.
+
+```{r}
+MCMCtrace(samples,params='yp',,pdf=FALSE)
+mean(samples[,'yp'])
+median(samples[,'yp'])
+```
+The mean of $yp$ is $0.3259806$ and the median is $0.3437509$.
+
+## c.
+
+```{r}
+MCMCtrace(samples,params=c('b0','bmath'),type='trace',pdf=FALSE)
+```
+The mixing is not great. There's a lot of autocorrelation in these plots.
+
+## d.
+
+```{r}
+effectiveSize(samples)
+```
+b0 and bmath have the lowest ESS. The autocorrelated chain for b0 has the same inferential power as if we had $51.75455$ independent samples, and the autocorrelated chain for bmath has the same inferential power as if we had $44.40010$ independent samples.
+
+## e.
+
+```{r}
+acfplot(as.mcmc(samples),lag.max=100)
+```
+As we can see in this graph, the autocorrelation remains high in variables like b0 and bmath, while it hovers close to $0$ in variables like bprivate and bpublic. Therefore, the higher the ESS, the lower the autocorrelation.
+
+# Problem 4
+
+## a.
+
+Each predictor, denoted $\beta_i$ for $i\in 1,2,3,\dots,9,10$, will follow the uninformative prior $\beta_i\sim Gamma(0.001,0.001)$. The likelihood $y_i$ for each $i$ follows a Bernoulli distribution such that $y_i\sim Bernoulli(p[i])$.
+
+## The rest of it
+
+```{r eval=FALSE}
+n <- 1000
+pred <- 10
+
+code <- nimbleCode({
+  for(i in 1:n){
+    logit(p[i]) <- beta0+sum(x[i,1:pred]*beta[1:pred])
+    y[i] ~ dbern(p[i])
+  }
+  beta0 ~ dnorm(0,0.001)
+  for(j in 1:pred){
+    beta[j] ~ dnorm(0,0.001)
+  }
+})
+
+constants <- list(n=n,pred=pred)
+data <- list(y=rbinom(n,1,0.5),x=matrix(rnorm(n*pred),nrow=n,ncol=pred))
+inits <- list(beta0=0,beta=rep(0,pred))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+```
+
+# Problem 5
+
+## a.
+
+```{r eval=FALSE}
+logistic <- read.csv('logistic_regression.csv')
+
+ps <- logistic[,1:10]
+y <- logistic[,11]
+
+code <- nimbleCode({
+  beta0 ~ dnorm(0,0.001)
+  for(i in 1:pred){
+    beta[i] ~ dnorm(0,0.001)
+  }
+  for(i in 1:n){
+    logit(p[i]) <- beta0+sum(beta[1:10]*q[i,1:10])
+    y[i] ~ dbern(p[i])
+  }
+})
+
+constants <- list(q=ps,n=n,pred=pred)
+data <- list(y=y)
+inits <- list(beta0=0,beta=rep(0,pred))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=10000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem10.5.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem10.5.Rdata')
+```
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+$\beta_3$, $\beta_4$, and $\beta_8$ are the coefficients that have a significant relationship with the response variable.
+
+## b.
+
+```{r}
+effectiveSize(samples)
+```
+Each $\beta$'s ESS is well over $1000$, so we should have enough data to make reliable inferences.
+
+## c.
+
+```{r eval=FALSE}
+logistic <- read.csv('logistic_regression.csv')
+
+ps <- logistic[,1:10]
+y <- logistic[,11]
+
+code <- nimbleCode({
+  beta0 ~ dnorm(0,0.001)
+  for(i in 1:pred){
+    beta[i] ~ dnorm(0,0.001)
+  }
+  for(i in 1:n){
+    logit(p[i]) <- beta0+sum(beta[1:10]*q[i,1:10])
+    y[i] ~ dbern(p[i])
+  }
+})
+
+constants <- list(q=ps,n=n,pred=pred)
+data <- list(y=y)
+inits <- list(beta0=0,beta=rep(0,pred))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+
+conf <- configureMCMC(Rmodel,onlySlice=TRUE)
+conf$printSamplers()
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=10000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples2_problem10.5.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples2_problem10.5.Rdata')
+```
+
+```{r}
+effectiveSize(samples)
+```
+
+It took way longer for this MCMC to run compared to the previous one. However, the ESS for each $\beta$ is approximately $10000$; therefore, we can make stronger inferences than we could previously.

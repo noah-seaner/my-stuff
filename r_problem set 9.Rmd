@@ -1,0 +1,260 @@
+---
+title: "Problem Set 9"
+author: "Noah Seaner"
+date: "4/8/2025"
+output: pdf_document
+---
+
+# Problem 1
+
+## a.
+
+We will use the prior distributions $\beta_0,\beta_{age},\beta_{hp},\text{and} \, \beta_{type}\sim Normal(0,\sigma=10000)$. Furthermore, the standard deviation $\sigma$ has the prior distribution $\sigma\sim Normal(0,10000)$. The likelihood $y_i\sim Normal(\mu_i,\sigma)$ where $\mu_i$ is found by calculating the sum $\beta_0+\beta_{age}\text{Age}_i+\beta_{hp}\text{HP}_i+\beta_{type}\text{Type}_i$. The subscript $i$ denotes each individual car in the dataset, of which there are $19$.
+
+## b.
+
+$p(\beta_0,\beta_{age},\beta_{hp},\beta_{type},\sigma\mid y_{i})\propto p(\beta_0\mid y_i)\cdot p(\beta_{age}\mid y_i)\cdot p(\beta_{hp}\mid y_i)\cdot p(\beta_{type}\mid y_i)\cdot p(\sigma\mid y_i)$.
+
+## c.
+
+```{r}
+library(nimble)
+library(readr)
+```
+
+```{r eval=FALSE}
+cars=read.csv('UsedCars.csv')
+n=length(cars$Car)
+
+y=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=n)
+data <- list(y=y,age=age,hp=hp,type=type)
+inits <- list(b=c(0,0,0,0),sigma=1)
+Rmodel <- nimbleModel(code,constants,data,inits)
+
+## d.
+Rmodel$calculate()
+
+## e.
+conf <- configureMCMC(Rmodel)
+
+## f.
+Rmcmc <- buildMCMC(conf)
+
+## g.
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc,project=Rmodel)
+
+## h.
+samples <- runMCMC(Cmcmc)
+```
+
+A random walk sampler was assigned to $\sigma$ and a conjugate sampler was assigned to the four $\beta$'s.
+
+## i.
+
+```{r eval=FALSE, echo=FALSE}
+save(samples,file='samples_problem1.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem1.Rdata')
+```
+
+```{r}
+dim(samples)
+```
+We generated $10000$ samples of five parameters; therefore, our matrix should be $1000\times 5$ which it is.
+
+## j.
+
+```{r}
+samplesSummary(samples)
+```
+
+## k.
+
+The two regression coefficients that are statistically different from zero are $\beta_{age}$ and $\beta_{hp}$
+
+## l.
+
+If all other variables in our model are held constant, whenever we increase the age by one unit, it decreases the dependent variable by approximately $-9.19\times 10^2$ on average.
+
+# Problem 2
+
+## a.
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  mu ~ dnorm(100,sd=10)
+  for(i in 1:n){
+    y[i] ~ dnorm(mu,sd=10)
+  }
+  yp ~ dnorm(mu,sd=10)
+})
+
+constants <- list(n=4)
+data <- list(y=c(100,110,112,118))
+inits <- list(yp=116)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+
+## b.
+Rmodel$getNodeNames(dataOnly=TRUE)
+
+## c.
+conf <- configureMCMC(Rmodel)
+
+## d.
+conf$addMonitors('yp')
+conf$printMonitors()
+
+## e.
+Rmcmc <- buildMCMC(conf)
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+samples <- runMCMC(Cmcmc)
+```
+
+The data values listed are $y[1]$, $y[2]$, $y[3]$, and $y[4]$. Our predictive node, $yp$, is not listed as a data node.
+
+$yp$ has been assigned as a posterior predictive sampler.
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem2.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem2.Rdata')
+```
+
+```{r}
+quantile(samples,probs=c(0.025,0.975))
+mean(samples)
+sd(samples)
+```
+Our 95% BCI for $yp$ is $(89.72514,126.08036)$. Since $\mu=100$ is in this interval, we fail to reject the null hypothesis. Furthermore, the mean and standard deviation for $yp$ are $107.9902$ and $8.450537$ respectively. 
+
+# Problem 3
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  for(i in 1:6){
+    theta[i] ~ dunif(0,1)
+    for(j in 1:2){
+      y[i,j] ~ dbinom(size=n[i,j],prob=theta[i])
+    }
+  }
+})
+
+n <- matrix(c(0,1,8,98,98,98,1,1,1,1,1,100),ncol=2)
+ydata <- matrix(c(0,1,8,98,98,98,NA,NA,NA,NA,NA,NA),ncol=2)
+yinit <- matrix(c(NA,NA,NA,NA,NA,NA,0,0,0,0,0,50),ncol=2)
+
+constants <- list(n=n)
+data <- list(y=ydata)
+inits <- list(theta=rep(0.5,6),y=yinit)
+Rmodel <- nimbleModel(code,constants,data,inits)
+
+conf <- configureMCMC(Rmodel)
+conf$addMonitors('y')
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+set.seed(0)
+samples <- runMCMC(Cmcmc,10000)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem3.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem3.Rdata')
+```
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+# Problem 4
+
+```{r eval=FALSE}
+y1 <- c(45,32,51)
+y2 <- c(23,25,31,33,30,43,39)
+
+n1 <- length(y1)
+n2 <- length(y2)
+
+code <- nimbleCode({
+  for(i in 1:2){
+    mu[i] ~ dnorm(30,sd=5)
+  }
+  sigma ~ dunif(0,100)
+  for(i in 1:n1){
+    y1[i] ~ dnorm(mu[1],sd=sigma)
+  }
+  for(i in 1:n2){
+    y2[i] ~ dnorm(mu[2],sd=sigma)
+  }
+})
+
+constants <- list(n1=3,n2=7)
+data <- list(y1=y1,y2=y2)
+inits <- list(sigma=1,mu=c(30,30))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r eval=FALSE,echo=FALSE}
+save(samples,file='samples_problem4.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem4.Rdata')
+```
+
+## f.
+
+```{r}
+quantile(samples[,3],probs=c(0.025,0.975))
+```
+The 95% BCI for $\sigma$ is $(5.743389,10.029117)$.
+
+## g.
+
+```{r}
+quantile(samples[,1]-samples[,2],probs=c(0.025,0.975))
+```
+Since $0$ is in the 95% BCI for $\mu_1-\mu_2$, we fail to reject the null hypothesis.
+
+## h.
+
+```{r}
+mean(samples[,1]<samples[,2])
+```
+Therefore, $Pr(\mu_1<\mu_2\mid y)=0.1719$.

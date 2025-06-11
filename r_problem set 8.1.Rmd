@@ -1,0 +1,445 @@
+---
+title: "Problem Set 8.1"
+author: "Noah Seaner"
+date: "4/1/2025"
+output: pdf_document
+---
+
+# Problem 1
+
+## Part I
+
+```{r}
+library(nimble)
+library(readr)
+```
+
+### a.
+
+```{r}
+## theta=0.5
+code <- nimbleCode({
+  theta ~ dunif(0,1)
+  for(i in 1:N){
+    y[i] ~ dbern(theta)
+  }
+})
+
+constants <- list(N=4)
+inits <- list(theta=0.5)
+
+Rmodel <- nimbleModel(code,constants,inits)
+Rmodel$theta <- 0.5
+Rmodel$calculate()
+
+sum=numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('y')
+  sum[i]=sum(Rmodel$y)
+}
+
+table(sum)/10000
+```
+
+Given that we have $\theta=0.5$, then we have $p(x=0)=p(x=1)=0.5$. Therefore, we can calculate $p(sum=0)=p(sum=4)=0.5^4=0.0625$, $p(sum=1)=p(sum=3)={4\choose 1}0.5^4=0.25$, and $p(sum=2)={4\choose 2}0.5^4=0.375$. Therefore, the probabilities in the table are approximately similar to the probabilites from the Binomial distribution.
+
+```{r}
+## theta=0.75
+code <- nimbleCode({
+  theta ~ dunif(0,1)
+  for(i in 1:N){
+    y[i] ~ dbern(theta)
+  }
+})
+
+constants <- list(N=4)
+inits <- list(theta=0.75)
+
+Rmodel <- nimbleModel(code,constants,inits)
+Rmodel$theta <- 0.75
+Rmodel$calculate()
+
+sum=numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('y')
+  sum[i]=sum(Rmodel$y)
+}
+
+table(sum)/10000
+```
+
+Given that we have $\theta=0.75$, then we have $p(x=0)=0.75$ and $p(x=1)=0.25$. From there, we can calculate $p(sum=0)={4\choose 0}0.25^4=0.0039$, $p(sum=1)={4\choose 1}(0.75)(0.25)^3=0.0468$, $p(sum=2)={4\choose 2}0.75^20.25^2=0.2109$, $p(sum=3)={4\choose 3}(0.75)^3(0.25)=0.4218$, and $p(sum=4)={4\choose 4}0.75^4=0.3164$. Therefore, the probabilites in the table are approximately similar to the probabilies from the Binomial distribution.
+
+```{r}
+## theta=0.9
+
+code <- nimbleCode({
+  theta ~ dunif(0,1)
+  for(i in 1:N){
+    y[i] ~ dbern(theta)
+  }
+})
+
+constants <- list(N=4)
+inits <- list(theta=0.9)
+
+Rmodel <- nimbleModel(code,constants,inits)
+Rmodel$theta <- 0.9
+Rmodel$calculate()
+
+sum=numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('y')
+  sum[i]=sum(Rmodel$y)
+}
+
+table(sum)/10000
+```
+
+Given that $\theta=0.9$, we have $p(x=0)=0.9$ and $p(x=1)=0.1$. From there, we can calculate $p(sum=0)={4\choose 0}0.1^4=0.0001$, $p(sum=1)={4\choose 1}(0.9)(0.1)^3=0.0036$, $p(sum=2)={4\choose 2}(0.9)^2(0.1)^2=0.0486$, $p(sum=3)={4\choose 3}(0.9)^3(0.1)=0.2916$, and $p(sum=4)={4\choose 4}0.9^4=0.6561$. Therefore, the probabilities in the table are approximately similar to the probabilities from the Binomial Distribution.
+
+## Part II
+
+```{r}
+code <- nimbleCode({
+  theta ~ dunif(0,1)
+  for(i in 1:4){
+    y[i] ~ dbern(theta)
+  }
+  total <- sum(y[1:4])
+})
+
+inits <- list(theta=0.75)
+
+Rmodel <- nimbleModel(code,inits)
+Rmodel$calculate()
+
+sum <- numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('y')
+  Rmodel$calculate('total')
+  sum[i]=Rmodel$total
+}
+
+table(sum)/10000
+```
+
+From Part 1, we know that $p(sum=0)=0.0039$, $p(sum=1)=0.0468$, $p(sum=2)=0.2109$, $p(sum=3)=0.4218$, and $p(sum=4)=0.3164$. Using the 'total' method in this part gave us a table whose numbers were more consistently accurate with the Binomial distribution.
+
+## Part III
+
+### a.
+
+Given that $\theta=0.5$, we can calculate the mean $E[y\mid\theta]=\theta=0.5$ and the standard deviation $\sigma(y\mid\theta)=\sqrt{\theta(1-\theta)}=0.5$.
+
+### b.
+
+I suspect that the mean of the 'total' variable, if the value of $\theta$ is chosen randomly from the prior distribution $\theta\sim Uniform(0,1)$, will be $4(0.5)=2$. Similarly, I believe that the standard deviation of the 'total' variable, if the value of $\theta$ is drawn randomly from the prior distribution $\theta\sim Uniform(0,1)$, will be $\sqrt{4(0.5)(0.5)}=1$. Both of these values are larger than the mean and standard deviation of just $y_i$.
+
+### c.
+
+```{r}
+code <- nimbleCode({
+  theta ~ dunif(0,1)
+  for(i in 1:4){
+    y[i] ~ dbern(theta)
+  }
+  total <- sum(y[1:4])
+})
+
+Rmodel <- nimbleModel(code)
+
+sum=numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('theta')
+  Rmodel$calculate()
+  Rmodel$simulate('y')
+  Rmodel$calculate('total')
+  sum[i]=Rmodel$total
+}
+```
+
+### d.
+
+```{r}
+mean(sum)
+sd(sum)
+```
+My guesses for the mean and standard deviation were fairly accurate. 
+
+# Problem 2
+
+## a.
+
+```{r}
+set.seed(0)
+code <- nimbleCode({
+  mu ~ dnorm(0,0.001)
+  tau ~ dgamma(0.001,0.001)
+  for(i in 1:8){
+    y[i] ~ dnorm(mu,tau)
+  }
+})
+
+Rmodel <- nimbleModel(code)
+Rmodel$getNodeNames()
+```
+
+## b.
+
+```{r}
+set.seed(0)
+Rmodel$simulate('mu')
+Rmodel$mu
+```
+
+## c.
+
+```{r}
+Rmodel$calculate('mu')
+Rmodel$getLogProb('mu')
+```
+
+## d.
+
+```{r}
+dnorm(39.93812,0,sqrt(1/0.001),log=TRUE)
+```
+
+## e.
+
+```{r}
+samples=numeric(10000)
+for(i in 1:10000){
+  Rmodel$simulate('mu')
+  samples[i]=Rmodel$mu
+}
+
+hist(samples,probability=TRUE)
+curve(dnorm(x,0,sqrt(1/0.001)),add=TRUE,col='blue')
+```
+
+## f.
+
+```{r}
+set.seed(0)
+Rmodel$mu <- 3
+Rmodel$tau <- 1
+Rmodel$calculate()
+Rmodel$simulate('y')
+Rmodel$y
+```
+
+## g.
+
+```{r}
+set.seed(0)
+rnorm(8,Rmodel$mu,Rmodel$tau)
+```
+
+## h.
+
+```{r}
+Rmodel$calculate('y')
+```
+
+## i.
+
+```{r}
+sum(dnorm(Rmodel$y,Rmodel$mu,Rmodel$tau,log=TRUE))
+```
+
+## j.
+
+```{r}
+Rmodel$calculate()
+sum(dnorm(Rmodel$y,Rmodel$mu,Rmodel$tau,log=TRUE))+dnorm(Rmodel$mu,0,sqrt(1/0.001),log=TRUE)+dgamma(Rmodel$tau,0.001,0.001,log=TRUE)
+```
+
+# Problem 3
+
+## a.
+
+We will use the prior distributions $\beta_0,\beta_{age},\beta_{hp},\text{and} \, \beta_{type}\sim Normal(0,\sigma=10000)$. Furthermore, the standard deviation $\sigma$ has the prior distribution $\sigma\sim Normal(0,10000)$. The likelihood $y_i\sim Normal(\mu_i,\sigma)$ where $\mu_i$ is found by calculating the sum $\beta_0+\beta_{age}\text{Age}_i+\beta_{hp}\text{HP}_i+\beta_{type}\text{Type}_i$. The subscript $i$ denotes each individual car in the dataset, of which there are $19$.
+
+## b.
+
+```{r}
+cars=read_csv('UsedCars.csv')
+n=length(cars$Car)
+
+price=unlist(as.vector(cars[,2]))
+age=unlist(as.vector(cars[,3]))
+hp=unlist(as.vector(cars[,4]))
+type=unlist(as.vector(cars[,5]))
+
+code <- nimbleCode({
+  for(i in 1:4){
+    b[i] ~ dnorm(0,sd=10000)
+  }
+  sigma ~ dunif(0,10000)
+  for(i in 1:n){
+    mu[i] <- b[1]+b[2]*age[i]+b[3]*hp[i]+b[4]*type[i]
+    y[i] ~ dnorm(mu[i],sigma)
+  }
+})
+
+constants <- list(n=19,age=age,hp=hp,type=type)
+data <- list(y=price)
+inits <- list(b=c(0,0,0,0),sigma=1)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+```
+
+## c.
+
+```{r}
+Rmodel$calculate()
+```
+
+## d.
+
+```{r}
+Rmodel$calculate('b[1]')
+dnorm(Rmodel$b[1],0,10000,log=TRUE)
+```
+
+## e.
+
+```{r}
+Rmodel$calculate('b[2]')
+Rmodel$calculate('b[3]')
+Rmodel$calculate('b[4]')
+```
+
+## f.
+
+```{r}
+Rmodel$calculate('sigma')
+dunif(Rmodel$sigma,0,10000,log=TRUE)
+```
+
+## g.
+
+```{r}
+Rmodel$calculate('y')
+sum(dnorm(Rmodel$y,Rmodel$mu,Rmodel$sigma,log=TRUE))
+```
+
+## h.
+
+The first equality holds true due to factoring the joint probability, the second equality is true due to independence of the betas from $\sigma$, and the third equality is due to properties of logarithms.
+
+## i.
+
+```{r}
+set.seed(0)
+runif(1,0,10000)
+```
+
+## j.
+
+```{r}
+set.seed(0)
+Rmodel$simulate('sigma')
+Rmodel$sigma
+```
+
+# Problem 4
+
+## a.
+
+For this scenario, we have $n_1$ i.i.d. observations from a Normal distribution with mean $\mu_1$ and we have $n_2$ i.i.d. from another Normal distribution with mean $\mu_2$. By assumption, the population has standard deviation $\sigma$. Therefore, the likelihood for the first $n_1$ samples is $y_i\sim Normal(\mu_i,\sigma)$ and the likelihood for the next $n_2$ samples is $y_i\sim Normal(\mu_2,\sigma)$. Our prior distributions are $\mu_1\sim Normal(30,\sigma=5)$, $\mu_2\sim Normal(30,\sigma=5)$ and $\sigma\sim Uniform(0,10000)$.
+
+## b.
+
+```{r}
+y1 <- c(45,32,51)
+y2 <- c(23,25,31,33,30,43,39)
+
+n1 <- length(y1)
+n2 <- length(y2)
+
+code <- nimbleCode({
+  for(i in 1:2){
+    mu[i] ~ dnorm(30,sd=5)
+  }
+  sigma ~ dunif(0,100)
+  for(i in 1:n1){
+    y1[i] ~ dnorm(mu[1],sd=sigma)
+  }
+  for(i in 1:n2){
+    y2[i] ~ dnorm(mu[2],sd=sigma)
+  }
+})
+
+constants <- list(n1=3,n2=7)
+data <- list(y1=y1,y2=y2)
+inits <- list(sigma=1,mu=c(30,30))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+Rmodel$calculate()
+```
+
+## c.
+
+```{r}
+dunif(Rmodel$sigma,0,100,log=TRUE)+sum(dnorm(Rmodel$mu,30,5,log=TRUE))+sum(dnorm(Rmodel$y1,Rmodel$mu,Rmodel$sigma,log=TRUE))+sum(dnorm(Rmodel$y2,Rmodel$mu,Rmodel$sigma,log=TRUE))
+```
+
+## d.
+
+```{r}
+Cmodel <- compileNimble(Rmodel)
+dunif(Cmodel$sigma,0,100,log=TRUE)+sum(dnorm(Cmodel$mu,30,5,log=TRUE))+sum(dnorm(Cmodel$y1,Cmodel$mu,Cmodel$sigma,log=TRUE))+sum(dnorm(Cmodel$y2,Cmodel$mu,Cmodel$sigma,log=TRUE))
+```
+
+## e.
+
+```{r}
+Nsim=10000
+mu_sample=matrix(NA,nrow=Nsim,ncol=2)
+sigma_sample=numeric(Nsim)
+
+mu_current=c(30,30)
+sigma_current=1
+
+for(i in 1:Nsim){
+  mu_prop=rnorm(2,mu_current,1)
+  sigma_prop=abs(rnorm(1,sigma_current,1))
+  Cmodel$mu <- mu_prop
+  Cmodel$sigma <- sigma_prop
+  log_piprop <- Cmodel$calculate()
+  Cmodel$mu <- mu_current
+  Cmodel$sigma <- sigma_current
+  log_picurrent <- Cmodel$calculate()
+  loga <- log_piprop-log_picurrent
+  if(log(runif(1))<loga){
+    mu_current=mu_prop
+    sigma_current=sigma_prop
+  }
+  mu_sample[i,]=mu_current
+  sigma_sample[i]=sigma_prop
+}
+```
+
+## f.
+
+```{r}
+mean(sigma_sample)
+quantile(sigma_sample,prob=c(0.025,0.975))
+```
+
+## g.
+
+```{r}
+quantile(mu_sample[,1]-mu_sample[,2],prob=c(0.025,0.975))
+```
+
+Since $0$ is in the interval, we fail to reject the null hypothesis.
+
+## h.
+
+```{r}
+mean(mu_sample[,1]<mu_sample[,2])
+```

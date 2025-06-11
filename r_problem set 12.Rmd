@@ -1,0 +1,730 @@
+---
+title: "Problem Set 12"
+author: "Noah Seaner"
+date: "5/5/2025"
+output: pdf_document
+---
+
+```{r}
+library(nimble)
+library(coda)
+library(readr)
+library(MCMCvis)
+library(ggplot2)
+```
+
+# Problem 1
+
+## a.
+
+Our priors are $\beta_i\sim Normal(0,\sigma=10)$ for $i=0,1,2,3$, $\sigma_{age}\sim Uniform(0,1000)$, $\sigma_{edu}\sim Uniform(0,100)$, and $\sigma_{state}\sim Uniform(0,100)$. Our latent states are $\varepsilon_{age}\sim Normal(0,\sigma_age)$,$\varepsilon_{edu}\sim Normal(0,\sigma_{edu})$, and $\varepsilon_{state}\sim Normal(0,\sigma_{state})$. Our likelihood is $y_i\mid\beta_i,\sigma_{age},\sigma_{edu},\sigma_{state}\sim Bernoulli(p_i)$ where $\text{logit}(p_i)=\beta_0+\beta_1*\text{female}_i+\beta_2*\text{married}_i+b3*\text{income}_i+\varepsilon_{age}+\varepsilon_{edu}+\varepsilon_{state}$.
+
+## b.
+
+We have seven top-level parameters: the regression coefficients for female voters, married voters, and income, and the standard deviations for the random effects of age, state, and education level. Furthermore, there are 57 latent states for each age category, education level, and state.
+
+## c.
+
+```{r eval=FALSE}
+elect <- read.csv('elections.csv')
+
+elect$age <- as.factor(elect$age)
+elect$edu <- as.factor(elect$edu)
+elect$state <- as.factor(elect$state)
+
+n_age <- length(unique(elect$age))
+n_edu <- length(unique(elect$edu))
+n_state <- length(unique(elect$state))
+
+N <- nrow(elect)
+y <- elect$vote
+
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=100)
+  b1 ~ dnorm(0,sd=100)
+  b2 ~ dnorm(0,sd=100)
+  b3 ~ dnorm(0,sd=100)
+  
+  sigma_age ~ dunif(0,100)
+  sigma_edu ~ dunif(0,100)
+  sigma_state ~ dunif(0,100)
+  
+  for(i in 1:N){
+    logit(p[i]) <- b0+b1*female[i]+b2*married[i]+b3*income[i]+eps_age[age[i]]+eps_edu[edu[i]]+eps_state[state[i]]
+    y[i] ~ dbern(p[i])
+  }
+  
+  for(j in 1:n_age){
+    eps_age[j] ~ dnorm(0,sd=sigma_age)
+  }
+  for(j in 1:n_edu){
+    eps_edu[j] ~ dnorm(0,sd=sigma_edu)
+  }
+  for(j in 1:n_state){
+    eps_state[j] ~ dnorm(0,sd=sigma_state)
+  }
+})
+
+constants <- list(N=N,n_age=n_age,n_edu=n_edu,n_state=n_state,age=as.integer(elect$age),edu=as.integer(elect$edu),state=as.integer(elect$state),female=elect$female,married=elect$married,income=elect$income)
+data <- list(y=y)
+inits <- list(b0=0,b1=0,b2=0,b3=0,eps_age=rep(0,n_age),eps_edu=rep(0,n_edu),eps_state=rep(0,n_state),sigma_age=1,sigma_edu=1,sigma_state=1)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel,onlySlice=TRUE)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,samplesAsCodaMCMC=TRUE)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples_problem13.1c.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem13.1c.Rdata')
+```
+
+```{r}
+effectiveSize(samples)
+MCMCtrace(samples,type='trace',pdf=FALSE)
+```
+
+## d.
+
+```{r}
+samplesSummary(samples,round=2)
+exp(-0.10)
+exp(-1.75)
+exp(0)
+```
+According to the samples, females are about $90.4\%$ more likely to vote Democratic and married people are about $17.4\%$ more likely to vote Democratic. Since income was not a categorical variable, we cannot say for certain whether income has an effect on people's propensity to vote Democratic.
+
+# Problem 2
+
+## a.
+
+Our priors are $\beta_0\sim Normal(0,\sigma=1000)$, $\beta_{plant}\sim Normal\left(0,\sigma_{plant}^2\right)$ where $\sigma_{plant}=0.1,0.5,1,5,10$, and $\beta_{fert}\sim Normal(0,\sigma=0.1)$. Our latent state is $\varepsilon_{plot_i}\sim Normal\left(0,\sigma_{plot_i}^2\right)$ for $i=1,\dots,21$. Our regression model for the probability of germinations is $\text{logit}(p_i)=\beta_0+\beta_{plant}*plant_i+\beta_{fert}*fert_i+\varepsilon_{plot_i}$.
+
+## b.
+
+```{r eval=FALSE}
+seeds <- read.csv('seeds.csv')
+
+N <- nrow(seeds)
+plant <- as.numeric(as.factor(seeds$plant))-1
+fert <- as.numeric(as.factor(seeds$fertilizer))-1
+n_seeds <- seeds$seeds
+germ <- seeds$germinations
+
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=0.1)
+  b_fert ~ dnorm(0,sd=0.1)
+  sigma_plot ~ dunif(0,100)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples1 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=0.5)
+  b_fert ~ dnorm(0,sd=0.1)
+  sigma_plot ~ dunif(0,100)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples2 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=1)
+  b_fert ~ dnorm(0,sd=0.1)
+  sigma_plot ~ dunif(0,100)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples3 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=5)
+  b_fert ~ dnorm(0,sd=1)
+  sigma_plot ~ dunif(0,100)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples4 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=10)
+  b_fert ~ dnorm(0,sd=1)
+  sigma_plot ~ dunif(0,100)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples5 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples1,file='samples1_problem13.3b.Rdata')
+save(samples2,file='samples2_problem13.3b.Rdata')
+save(samples3,file='samples3_problem13.3b.Rdata')
+save(samples4,file='samples4_problem13.3b.Rdata')
+save(samples5,file='samples5_problem13.3b.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples1_problem13.3b.Rdata')
+load('samples2_problem13.3b.Rdata')
+load('samples3_problem13.3b.Rdata')
+load('samples4_problem13.3b.Rdata')
+load('samples5_problem13.3b.Rdata')
+```
+
+```{r}
+samples_matrix <- data.frame(
+  value=c(samples1[,'b_plant'],samples2[,'b_plant'],samples3[,'b_plant'],samples4[,'b_plant'],samples5[,'b_plant']),
+  model=factor(rep(c('Model 1','Model 2','Model 3','Model 4','Model 5')))
+)
+
+ggplot(samples_matrix,aes(x=value,color=model))+
+  geom_density()+
+  theme_minimal()+
+  labs(title='Density Plot of Different Priors',x='Value',y='Density')+
+  theme(legend.title=element_blank())
+```
+
+## c.
+
+I think Model 5 will be the model of choice here. It's good compared to the others and is the most non-informative.
+
+## d.
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=10)
+  b_fert ~ dnorm(0,sd=1)
+  sigma_plot ~ dunif(0,10000)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,sd=sigma_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,sigma_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples1 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=10)
+  b_fert ~ dnorm(0,sd=1)
+  var_plot ~ dunif(0,10000)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,var=var_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,var_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples2 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  b0 ~ dnorm(0,sd=1000)
+  b_plant ~ dnorm(0,sd=10)
+  b_fert ~ dnorm(0,sd=1)
+  tau_plot ~ dgamma(0.001,0.001)
+  
+  for(i in 1:N){
+    eps_plot[i] ~ dnorm(0,tau_plot)
+    logit(p[i]) <- b0+b_plant*plant[i]+b_fert*fert[i]+eps_plot[i]
+    germ[i] ~ dbinom(size=n_seeds[i],prob=p[i])
+  }
+})
+
+constants <- list(N=N)
+data <- list(germ=germ,n_seeds=n_seeds,plant=plant,fert=fert)
+inits <- list(b0=0,b_plant=0,b_fert=0,tau_plot=1,eps_plot=rep(0,n))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples3 <- runMCMC(Cmcmc,niter=20000)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples1,file='samples1_problem13.2d.Rdata')
+save(samples2,file='samples2_problem13.2d.Rdata')
+save(samples3,file='samples3_problem13.2d.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples1_problem13.2d.Rdata')
+load('samples2_problem13.2d.Rdata')
+load('samples3_problem13.2d.Rdata')
+```
+
+## e.
+
+```{r}
+samples_matrix <- data.frame(
+  value=c(samples1[,'sigma_plot'],samples2[,'var_plot'],samples3[,'tau_plot']),
+  model=factor(rep(c('Model 1','Model 2','Model 3')))
+)
+
+ggplot(samples_matrix,aes(x=value,color=model))+
+  geom_density()+
+  theme_minimal()+
+  labs(title='Density Plot of Each Random Effect Parametrization',x='Value',y='Density')+
+  theme(legend.title=element_blank())
+```
+
+## f.
+
+All of the lines seem to be stacked on top of each other, so there doesn't seem to be any effect of the parameterization choice on the posterior samples.
+
+## g.
+
+I'll use the variance for the data analysis.
+
+```{r}
+samplesSummary(samples2)
+```
+Using the variance, it appears that, on average, fertilizer B reduces the germination risk by $38.9\%$, but this is not significant since $0$ is contained in the confidence interval. On the other hand, cucumber plants are about $1.02$ times more likely to be germinated on average than bean plants, which is significant.
+
+# Problem 3
+
+## a & b.
+
+```{r eval=FALSE}
+y <- c(243,153,139,24)
+N <- sum(y)
+
+code <- nimbleCode({
+  p[1:4] ~ ddirch(a[1:4])
+  y[1:4] ~ dmulti(p[1:4],size=N)
+})
+
+data <- list(y=y)
+inits <- list(p=rep(0.25,4),a=rep(1,4),N=N)
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmodel$calculate()
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples_problem13.3a.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem13.3a.Rdata')
+```
+
+```{r}
+effectiveSize(samples)
+```
+The ESS for each probability is the number of iterations we ran for the MCMC chain, which makes sense.
+
+## c.
+
+```{r}
+mean(samples[,'p[1]']>0.4)
+```
+
+## d.
+
+```{r}
+mean(samples[,'p[2]']>samples[,'p[3]'])
+```
+
+## e.
+
+```{r}
+mean(samples[,'p[4]'])
+```
+
+This number is mostly consistent with $24/\Sigma(y)$.
+
+## f.
+
+```{r eval=FALSE}
+Cmodel$y <- c(1,2,3,4)
+Cmodel$calculate()
+```
+We get -Inf from the model because the multinomial distribution is evaluating the likelihood with the wrong N. The sum of y is therefore inconsistent resulting in a zero likelihood, and log(0)=-Inf.
+
+## g.
+
+```{r eval=FALSE}
+Cmodel$N <- 1+2+3+4
+Cmodel$calculate()
+```
+
+## h.
+
+```{r eval=FALSE}
+Cmodel$y <- c(243,153,139,24)
+Cmodel$N <- 243+153+139+24
+
+Cmodel$a <- c(0.5,0.5,0.5,0.5)
+samples <- runMCMC(Cmcmc)
+samplesSummary(samples)
+
+Cmodel$a <- rep(100,4)
+samples <- runMCMC(Cmcmc)
+samplesSummary(samples)
+```
+If we use a prior that biases the end points, then more weight is put on one tail, whereas if we make a more uniform prior, then it's slightly more even across all four probabilities.
+
+## i.
+
+```{r eval=FALSE}
+Cmodel$y <- c(1,2,3,4)
+Cmodel$N <- sum(Cmodel$y)
+Cmodel$a <- rep(1,4)
+samples <- runMCMC(Cmcmc)
+samplesSummary(samples)
+```
+
+# Problem 4
+
+## Part I
+
+### a.
+
+Our priors are $\phi\sim Uniform(0,1)$ and $p\sim Uniform(0,1)$. Our latent state is $z_{i,t}\sim Bernoulli(z_{i,t-1}*\phi)$ for $t=2,\dots,10$. Our likelihood is $y_{i,t}\mid\phi,p,z_{i,t}\sim Bernoulli(z_{i,t}*p)$ for $t=2,\dots,10$.
+
+### b.
+
+```{r}
+dolphins <- read.csv('dolphins.csv')
+
+y <- as.matrix(dolphins[,paste0('t',1:10)])
+n_dolphins <- nrow(y)
+n_days <- ncol(y)
+
+code <- nimbleCode({
+  phi ~ dunif(0,1)
+  p ~ dunif(0,1)
+  
+  for(i in 1:N){
+    z[i,1] <- 1
+    y[i,1] ~ dbern(p)
+    for(t in 2:T){
+      z[i,t] ~ dbern(z[i,t-1]*phi)
+      y[i,t] ~ dbern(z[i,t]*p)
+    }
+  }
+})
+
+constants <- list(N=n_dolphins,T=n_days)
+data <- list(y=y)
+inits <- list(phi=0.5,p=0.5,z=matrix(1,nrow=n_dolphins,ncol=n_days))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples_problem13.4b.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem13.4b.Rdata')
+```
+
+```{r}
+samplesSummary(samples,round=2)
+```
+
+## Part II
+
+### c.
+
+Our priors are $\phi\sim Uniform(0,1)$, $\beta_0\sim Normal(0,\sigma=1000)$, and $\beta_1\sim Normal(0,\sigma=1000)$. Our latent state is $z_{i,t}\sim Bernoulli(z_{i,t-1}*\phi)$ for $t=2,\dots,10$. Our likelihood is $y_{i,t}\sim Bernoulli(z_{i,t}*p)$ where $\text{logit}(p_i)=\beta_0+\beta_1*wind_t$.
+
+### d.
+
+```{r eval=FALSE}
+wind <- dolphins$wind[1:10]
+
+code <- nimbleCode({
+  phi ~ dunif(0,1)
+  b0 ~ dnorm(0,sd=1000)
+  b1 ~ dnorm(0,sd=1000)
+
+  for (t in 1:T) {
+    logit(p[t]) <- b0+b1*wind[t]
+  }
+
+  for (i in 1:N) {
+    z[i,1] <- 1
+    y[i,1] ~ dbern(p[1])
+    for (t in 2:T) {
+      z[i,t] ~ dbern(z[i,t-1] * phi)
+      y[i,t] ~ dbern(z[i,t] * p[t])
+    }
+  }
+})
+
+constants <- list(N=n_dolphins,T=n_days,wind=wind)
+data <- list(y=y)
+inits <- list(phi=0.5,b0=0,b1=0,z=matrix(1,nrow=n_dolphins,ncol=n_days))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel,monitors=c('phi','b0','b1','p'))
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples_problem13.4d.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem13.4d.Rdata')
+```
+
+```{r}
+samplesSummary(samples)
+```
+
+### e.
+
+Yes, the 95% BCI for the wind coefficient does not contain $0$; therefore, it is a significant predictor in this model.
+
+### f & g.
+
+```{r}
+p_samples <- as.matrix(samples)[,grep('^p\\[',colnames(samples))]
+colMeans(p_samples)
+```
+The day with the highest detection probability was day 8 at about $72.7\%$ and the day with the lowest detection probability was day 6 at about $35.4\%$.
+
+# Problem 5
+
+## a.
+
+$\psi\sim Uniform(0,1)$, $\mu_i\sim Gamma(0.001,0.001)$ and $\sigma_i\sim Uniform(0,10000)$ for $i=1,2$. The latent states $z_i\sim Bernoulli(\psi)$ for $i=1,\dots,380$. The likelihood $y_i\mid \mu_i,\sigma_i,z_i\sim Normal(\mu_{z_i+1},\sigma_{z_i+1})$. Our constraint is $\mu_1<\mu_2$.
+
+## b.
+
+```{r eval=FALSE}
+oak <- read.csv('oak_heights.csv')
+y <- oak$heights
+N <- nrow(oak)
+
+code <- nimbleCode({
+  psi ~ dunif(0,1)
+  for(i in 1:2){
+    mu[i] ~ dgamma(0.001,0.001)
+    sigma[i] ~ dunif(0,10000)
+  }
+  for(j in 1:N) {
+    z[j] ~ dbern(psi)
+    y[j] ~ dnorm(mu[z[j]+1],sd=sigma[z[j]+1])
+  }
+  constraint ~ dconstraint(mu[1]<mu[2])
+})
+
+constants <- list(N=N)
+data <- list(y=y,constraint=1)
+inits <- list(psi=0.5,mu=rep(1,2),sigma=rep(1,2),z=rbinom(N,1,0.5))
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel,monitors=c('mu','sigma','z','psi'))
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=50000,samplesAsCodaMCMC=TRUE)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples_problem13.5.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples_problem13.5.Rdata')
+```
+
+```{r}
+mean(samples[,1])
+mean(samples[,2])
+mean(samples[,4])
+mean(samples[,5])
+```
+
+## c & d.
+
+```{r}
+hist(y,breaks=20,col='gray',main='Oak Tree Heights',xlab='Height (m)')
+abline(v=y[253],col='red',lwd=2)
+abline(v=y[260],col='red',lwd=2)
+abline(v=y[275],col='red',lwd=2)
+```
+The histogram agrees nicely with the means and standard deviations of the two groups. It seems as though tree 253 and tree 260 will be marked in group 1, and tree 275 has a slightly better chance of being in group 2 but may also get grouped in group 1.
+
+## e.
+
+```{r}
+samples_mat <- as.matrix(samples)
+z_names <- colnames(samples_mat)[grepl('z\\[',colnames(samples_mat))]
+z_indices <- c(253,260,275)
+probs <- sapply(z_indices,function(i) mean(samples_mat[,paste0('z[',i,']')]))
+names(probs) <- paste0('y',z_indices)
+print(round(probs,3))
+```
+
+## f.
+
+```{r}
+par(mfrow=c(3,1))
+for(i in z_indices){
+  traceplot(window(samples[,paste0('z[',i,']')],start=49901),main=paste('Traceplot for z[',i,'](y',i,')',sep=''))
+}
+```
+The traceplots for tree 253 and tree 260 stay at 0 for the entirety of the running. Meanwhile, tree 275 spends most of its time at 0 before bounding between 0m and 1 for a few iterations.

@@ -1,0 +1,369 @@
+---
+title: "Problem Set 7"
+author: "Noah Seaner"
+date: "3/25/2025"
+output: pdf_document
+---
+
+# Problem 1
+
+```{r eval=FALSE}
+library(nimble)
+code=nimbleCode({x~dnorm(0,1)})
+Rmodel=nimbleModel(code)
+Cmodel=compileNimble(Rmodel)
+```
+Defining model
+Building model
+Running calculate on model
+  [Note] Any error reports that follow may simply reflect missing values in model variables.
+Checking model sizes and dimensions
+  [Note] This model is not fully initialized. This is not an error.
+         To see which variables are not initialized, use model$initializeInfo().
+         For more information on model initialization, see help(modelInitialization).
+Compiling
+  [Note] This may take a minute.
+  [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
+
+# Problem 2
+
+## a.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=0  # initial value for mu
+tau=1 # fixed value of tau
+smu=1 # tuning parameter for mu
+
+Nsim=100
+samples=numeric(Nsim)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,tau))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,tau))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  samples[i]=c(mu)
+}
+
+head(samples)
+tail(samples)
+
+```
+
+## b.
+
+```{r}
+plot(samples,type='l',xlab='N',ylab='mu')
+```
+In the first 10 iterations, it appears that the new value of $\mu$ gets accepted almost every time. In the final 90 iterations, the values of $\mu$ fluctuate between $3$ and $4$.
+
+## c.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=3  # initial value for mu (based on the results from parts a and b)
+smu=1 # tuning parameter for mu
+
+Nsim=10000
+samples=numeric(Nsim)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,1))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,1))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  samples[i]=c(mu)
+}
+
+plot(samples,type='l',xlab='N',ylab='mu')
+```
+
+## d.
+
+```{r}
+mean(samples)
+```
+
+## e.
+
+```{r}
+quantile(samples,probs=c(0.025,0.975))
+```
+Our 95% BCI is $(2.731638,4.203777)$.
+
+## f.
+
+Using Normal-Normal Conjugacy, our posterior distribution is $$\mu\mid y,\tau\sim Normal(3.4995626,8.001).$$
+
+## g.
+
+```{r}
+qnorm(0.025,3.4995626,1/sqrt(8.001))
+qnorm(0.975,3.4995626,1/sqrt(8.001))
+```
+Our 95% BCI using conjugacy produces a slightly different interval, but the bounds are roughly the same.
+
+# Problem 3
+
+## a.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=0
+tau=1
+smu=1
+stau=1
+
+Nsim=10000
+samples=matrix(NA,nrow=Nsim,ncol=2)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,1/sqrt(tau)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  prop=rnorm(1,tau,stau)
+  if(prop>0){
+    pi_current=dgamma(tau,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dgamma(prop,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(prop)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      tau=prop
+    }
+  }
+  samples[i,]=c(mu,tau)
+}
+
+head(samples)
+par(mfrow=c(1,2))
+plot(samples[,1],type='l',xlab='N',ylab='mu')
+plot(samples[,2],type='l',xlab='N',ylab='tau')
+```
+
+## b.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=0
+tau=1
+smu=20
+stau=50
+
+Nsim=10000
+samples=matrix(NA,nrow=Nsim,ncol=2)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,1/sqrt(tau)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  prop=rnorm(1,tau,stau)
+  if(prop>0){
+    pi_current=dgamma(tau,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dgamma(prop,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(prop)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      tau=prop
+    }
+  }
+  samples[i,]=c(mu,tau)
+}
+
+par(mfrow=c(1,2))
+plot(samples[,1],type='l',xlab='N',ylab='mu')
+plot(samples[,2],type='l',xlab='N',ylab='tau')
+```
+The plot for $\mu$ begins by accepting almost every proposed value until it fluctuates between 3 and 4. Meanwhile, the plot for $\tau$ is more volatile, fluctuating between 1 and 7. Both plots look the way they do because of the large standard deviations that we proposed. Therefore, our proposals for the distributions have the propensity to generate higher numbers, which would lead to higher acceptance probabilities.
+
+## c.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=0
+tau=1
+smu=0.01
+stau=0.01
+
+Nsim=10000
+samples=matrix(NA,nrow=Nsim,ncol=2)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,1/sqrt(tau)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  prop=rnorm(1,tau,stau)
+  if(prop>0){
+    pi_current=dgamma(tau,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dgamma(prop,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(prop)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      tau=prop
+    }
+  }
+  samples[i,]=c(mu,tau)
+}
+
+par(mfrow=c(1,2))
+plot(samples[,1],type='l',xlab='N',ylab='mu')
+plot(samples[,2],type='l',xlab='N',ylab='tau')
+```
+In this part, the roles are reversed. With smaller standard deviations, the plot of $\mu$ is more volatile while the graph of $\tau$ fluctuates around what is presumably its true value. The graphs look the way they do because of the smaller standard deviations that we proposed. Therefore, since $\mu$ follows a normal distribution, the smaller standard deviation will lead to more fluctuation, while $\tau$, following a gamma distribution, will concentrate around the true standard deviation.
+
+## d.
+
+```{r}
+set.seed(0)
+y=c(4.3,2.5,3.2,3.8,2.9,3.1,4.2,4.0)
+
+mu=0
+tau=1
+smu=1
+stau=10
+
+Nsim=10000
+samples=matrix(NA,nrow=Nsim,ncol=2)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>0){
+    pi_current=dnorm(mu,0,1/sqrt(0.001))*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dnorm(prop,0,1/sqrt(0.001))*prod(dnorm(y,prop,1/sqrt(tau)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  prop=rnorm(1,tau,stau)
+  if(prop>0){
+    pi_current=dgamma(tau,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(tau)))
+    pi_prop=dgamma(prop,0.001,0.001)*prod(dnorm(y,mu,1/sqrt(prop)))
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      tau=prop
+    }
+  }
+  samples[i,]=c(mu,tau)
+}
+
+par(mfrow=c(1,2))
+plot(samples[,1],type='l',xlab='N',ylab='mu')
+plot(samples[,2],type='l',xlab='N',ylab='tau')
+```
+
+## e.
+
+```{r}
+mean(samples[,1])
+mean(samples[,2])
+```
+The mean of $\mu$ is $3.502368$ and the mean of $\tau$ is $2.241479$. From Problem 6 on Problem Set 6, the mean of $\mu$ is $3.499108$ while the mean of $\tau$ was $2.292696$. 
+
+## f.
+
+```{r}
+quantile(samples[,1],probs=c(0.025,0.975))
+quantile(samples[,2],probs=c(0.025,0.975))
+```
+Our 95% BCI for $\mu$ is $(2.937780,4.047492)$ and our 95% BCI for $\tau$ is $(0.546337,5.291902)$.
+
+## g.
+
+```{r}
+par(mfrow=c(1,2))
+plot(density(samples[,1]),main='Posterior Density of Mu')
+plot(density(samples[,2]),main='Posterior Density of Tau')
+```
+The posterior density for $\mu$ seems to follow a normal distribution centered between 3 and 4. Furthermore, the posterior density for $\tau$ seems to follow a gamma distribution.
+
+# Problem 4
+
+## a.
+
+```{r}
+target=function(x){
+  -0.25*x^4+(8/3)*x^3-9.5*x^2+12*x+1
+}
+
+mu=0
+smu=1 # i.e., 1 is my proposed standard deviation
+
+Nsim=500000
+samples=numeric(Nsim)
+
+for(i in 1:Nsim){
+  prop=rnorm(1,mu,smu)
+  if(prop>=0 && prop<=5){
+    pi_current=target(mu)
+    pi_prop=target(prop)
+    a=pi_prop/pi_current
+    if(runif(1)<a){
+      mu=prop
+    }
+  }
+  samples[i]=c(mu)
+}
+```
+
+## b.
+
+```{r}
+mean(samples)
+```
+
+## c.
+
+```{r}
+hist(samples,probability=TRUE,breaks=100)
+```
+
+## d.
+
+```{r}
+hist(samples,probability=TRUE,breaks=100)
+curve(target(x)*0.05106383,from=0,to=5,add=TRUE,col='blue')
+```
+
+# Problem 5
+
+We've learned in class how Metropolis-Hastings, or MH, sampling allows us to get random samples from a target distribution, denoted $\pi(x)$, that we cannot directly sample. It works by starting from an initial value, proposing a new value based on a proposal distribution, calculating the acceptance probability of the proposed value, and then accepting or rejecting the proposed value. If we repeat this process over and over, we can obtain enough random samples of an arbitrary distribution to then perform analysis on it, e.g., calculating the mean, standard deviation, credible intervals, etc. 
+
+In 1970, a new algorithm was established by W.K. Hastings that expanded upon and generalized the Metropolis algorithm. Metropolis' algorithm, developed in 1953, was a revolutionary effort. Solving the problem of how Markov Chain Monte Carlo (MCMC) algorithms do not have a way of setting an appropriate transition matrix, Metropolis found a way to do this by using and expanding upon rejection sampling. While an incredible step forward, Metropolis' algorithm had a big problem when applied: the symmetry of the proposal distribution. It was this issue that Hastings found a solution to. He modified Metropolis' algorithm to account for any proposal distribution, regardless of symmetry, and to this day, it remains the most popular MCMC algorithm for Bayesian inference.
+
+Since Hastings' modification of Metropolis' algorithm, there have been many further developments in MCMC algorithms. For starters, Gibbs sampling, another method we learned about in class, was developed following Hastings' modification to the Metropolis algorithm. A special type of MCMC algorithm called the Metropolis-within-Gibbs algorithm, was developed as a result. More recently, a trend has seen many statisticians revert back to more classic MH sampling due to the Metropolis-within-Gibbs algorithm needing to be written on a case-by-case basis. In conclusion, the Hastings algorithm was, is, and will always be a revolutionary and profound step in statistics and modeling. It has allowed us to sample from arbitrary target distributions and perform analysis on them.
