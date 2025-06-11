@@ -1,0 +1,156 @@
+---
+title: 'The Impact of Torpedo Bats on the 2025 MLB Season'
+author: "Noah Seaner"
+date: "5/8/2025"
+output: pdf_document
+---
+
+```{r}
+library(nimble)
+library(coda)
+library(MCMCvis)
+library(readr)
+```
+# Effect on Batting Average
+
+MLB batting average is a metric that shows how often players are recording hits per at-bat. It divides a player's total hits by their total at bats. Therefore, the formula is  $$BA=\frac{H}{AB},$$ where H denotes hits and AB denotes at-bats.
+
+```{r eval=FALSE}
+df <- read.csv('torpedo_bat.csv')
+N <- length(df$Player)
+ba <- df$BA
+x <- df$Year
+
+code <- nimbleCode({
+  b0 ~ dunif(0,1)
+  b1 ~ dunif(0,0.5) ## mostly uninformative prior with some knowledge about the range of believable batting averages
+  sigma ~ dunif(0,10000)
+  for(i in 1:N){
+    mu[i] <- b0+b1*ba[i]*x[i]
+    eps[i] ~ dnorm(mu[i],sd=sigma)
+    logit(p[i]) <- mu[i]+eps[i]
+  }
+})
+
+constants <- list(N=N)
+data <- list(ba=ba,x=x)
+inits <- list(b0=0,b1=0.242,sigma=1,eps=rep(0,N)) ## 0.242 is the league average for batting average as of 5/2
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=20000,nburnin=5000)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples1_final.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples1_final.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='b1',pdf=FALSE)
+effectiveSize(samples)
+samplesSummary(samples)
+```
+The current league batting average is $0.242$ and the batting average for hitters with the torpedo bat is about $0.250$. Therefore, on average, torpedo bat users are hitting roughly $0.008$ above the league average, meaning they are recording hits $0.8\%$ more often. 
+
+# Effect on On-Base Percentage
+
+MLB on-base percentage is a metric that measures how often players get on base. It divides the amount of times a player reaches base by their total plate appearances. Therefore, the formula is $$OBP=\frac{H+BB+HBP}{AB+BB+HBP+SF},$$, where H represents hits, BB represents walks, HBP represents hit-by-pitches, AB represents at-bats, and SF represents sacrifice flies.
+
+```{r eval=FALSE}
+obp <- df$OBP
+
+code <- nimbleCode({
+  b0 ~ dunif(0,1)
+  b1 ~ dunif(0.1,0.5) # mostly uninformative prior with some knowledge of believable on-base percentages 
+  sigma ~ dunif(0,10000)
+  for(i in 1:N){
+    mu[i] <- b0+b1*obp[i]*x[i]
+    eps[i] ~ dnorm(mu[i],sd=sigma)
+    logit(p[i]) <- mu[i]+eps[i]
+  }
+})
+
+constants <- list(N=N)
+data <- list(obp=obp,x=x)
+inits <- list(b0=0,b1=0.316,sigma=1,eps=rep(0,N)) ## 0.316 is the league average on-base percentage as of 5/2
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=20000,nburnin=5000)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples2_final.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples2_final.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='b1',pdf=FALSE)
+effectiveSize(samples)
+samplesSummary(samples)
+```
+The current league on-base percentage is $0.316$, and the on-base percentage for hitters using torpedo bats is about $0.300$. Therefore, on average, hitters using the torpedo bats are getting on base roughly $0.016$ below the league average, meaning they are getting on base $1.6\%$ less often.
+
+# Effect on Slugging Percentage
+
+MLB slugging percentage is a metric that measures a player's batting "power" when it comes to hitting. It calculates a player's total bases resulting from hits divided by their total at-bats. Therefore, the formula is $$SLG=\frac{1B+2*2B+3*3B+4*HR}{AB},$$ where $1B$ denotes singles, $2B$ denotes doubles, $3B$ denotes triples, and HR denotes home runs.
+
+```{r eval=FALSE}
+slg <- df$SLG
+
+code <- nimbleCode({
+  b0 ~ dunif(0,1)
+  b1 ~ dunif(0.2,0.6) # mostly uninformative prior with some knowledge of believable slugging percentages 
+  sigma ~ dunif(0,10000)
+  for(i in 1:N){
+    mu[i] <- b0+b1*slg[i]*x[i]
+    eps[i] ~ dnorm(mu[i],sd=sigma)
+    logit(p[i]) <- mu[i]+eps[i]
+  }
+})
+
+constants <- list(N=N)
+data <- list(slg=slg,x=x)
+inits <- list(b0=0,b1=0.391,sigma=1,eps=rep(0,N)) ## 0.391 is the league average slugging percentage as of 5/2
+
+Rmodel <- nimbleModel(code,constants,data,inits)
+conf <- configureMCMC(Rmodel)
+Rmcmc <- buildMCMC(conf)
+
+Cmodel <- compileNimble(Rmodel)
+Cmcmc <- compileNimble(Rmcmc)
+
+samples <- runMCMC(Cmcmc,niter=20000,nburnin=5000)
+```
+
+```{r echo=FALSE,eval=FALSE}
+save(samples,file='samples3_final.Rdata')
+```
+
+```{r echo=FALSE}
+load('samples3_final.Rdata')
+```
+
+```{r}
+MCMCtrace(samples,params='b1',pdf=FALSE)
+effectiveSize(samples)
+samplesSummary(samples)
+```
+The league average slugging percentage is $0.391$ and the average slugging percentage for hitters using the torpedo bat is about $0.400$. Therefore, hitters using the torpedo bat are slugging $0.009$ above the league average.
